@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use RefactorCircus\Keystone\Models\Concerns\DispatchesModelEvents;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
+use RefactorCircus\Polycart\Support\Tables;
 
 /**
  * One level of the tree a cart lives in. Depth 0 is the cart's own scope.
@@ -29,13 +30,16 @@ final class CartPathModel extends Model
 
     public $timestamps = false;
 
-    protected $table = 'polycart_cart_paths';
-
     protected $fillable = [
         'scope_type',
         'scope_id',
         'depth',
     ];
+
+    public function getTable(): string
+    {
+        return Tables::name('cart_paths');
+    }
 
     /**
      * @return BelongsTo<CartModel, $this>

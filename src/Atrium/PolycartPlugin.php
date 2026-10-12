@@ -116,11 +116,7 @@ class PolycartPlugin extends Plugin
                 ->view('polycart::ui.widgets.carts-by-type')
                 ->authorize(fn (Request $request): bool => self::mayList($request->user()))
                 ->resolve(fn (): array => [
-                    'counts' => collect(array_keys(app(CartTypeRegistry::class)->all()))
-                        ->mapWithKeys(fn (string $type): array => [
-                            $type => self::visible()->ofType($type)->unexpired()->count(),
-                        ])
-                        ->all(),
+                    'counts' => self::countsByType(),
                 ]),
 
             WidgetDefinition::make('polycart.recent-carts')
@@ -156,6 +152,29 @@ class PolycartPlugin extends Plugin
                     route('atrium.polycart.carts.show', $cart),
                 )->subtitle($cart->type.($cart->status === null ? '' : ' · '.$cart->status))->group(__('polycart::polycart.carts')))
                 ->all());
+    }
+
+    /**
+     * The unexpired carts the user can access, counted per known type in
+     * one grouped query.
+     *
+     * @return array<string, int>
+     */
+    private static function countsByType(): array
+    {
+        $types = array_keys(app(CartTypeRegistry::class)->all());
+
+        $counts = self::visible()
+            ->ofType(...$types)
+            ->unexpired()
+            ->toBase()
+            ->select('type')
+            ->selectRaw('count(*) as aggregate')
+            ->groupBy('type')
+            ->pluck('aggregate', 'type')
+            ->all();
+
+        return array_combine($types, array_map(fn (string $type): int => (int) ($counts[$type] ?? 0), $types));
     }
 
     /**

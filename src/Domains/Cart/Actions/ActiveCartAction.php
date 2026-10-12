@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace RefactorCircus\Polycart\Domains\Cart\Actions;
 
 use Illuminate\Database\Eloquent\Model;
+use RefactorCircus\Polycart\Domains\Cart\Data\ActiveCartData;
+use RefactorCircus\Polycart\Domains\Cart\Data\CreateCartData;
 use RefactorCircus\Polycart\Domains\Cart\Events\ActiveCartResolvedActionEvent;
 use RefactorCircus\Polycart\Domains\Cart\Events\ActiveCartResolvingActionEvent;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
@@ -25,29 +27,14 @@ final class ActiveCartAction
     ) {}
 
     /**
-     * @return array<string, mixed>
-     */
-    public static function rules(): array
-    {
-        return [
-            'type' => ['required', 'string', 'max:191'],
-            'owner_type' => ['required_without:session_key', 'nullable', 'string', 'max:191', 'required_with:owner_id', 'prohibits:session_key'],
-            'owner_id' => ['required_with:owner_type', 'nullable', 'string', 'max:191'],
-            'session_key' => ['required_without:owner_type', 'nullable', 'string', 'max:191'],
-            'scope_type' => ['nullable', 'string', 'max:191', 'required_with:scope_id'],
-            'scope_id' => ['nullable', 'string', 'max:191', 'required_with:scope_type'],
-        ];
-    }
-
-    /**
      * @param  Model|null  $scope  Each scope has its own active cart, so
      *                             switching teams switches carts.
      */
-    public function execute(string $type, Model|string $owner, ?Model $scope = null): CartModel
+    public function execute(ActiveCartData $data, Model|string $owner, ?Model $scope = null): CartModel
     {
-        ActiveCartResolvingActionEvent::dispatch($type, $owner, $scope);
+        ActiveCartResolvingActionEvent::dispatch($data, $owner, $scope);
 
-        $result = $this->perform($type, $owner, $scope);
+        $result = $this->perform($data->type, $owner, $scope);
 
         ActiveCartResolvedActionEvent::dispatch($result);
 
@@ -72,6 +59,6 @@ final class ActiveCartAction
             ? $query->whereNull('status')
             : $query->where('status', $initial);
 
-        return $query->latest()->first() ?? $this->create->execute($type, $owner, scope: $scope);
+        return $query->latest()->first() ?? $this->create->execute(new CreateCartData($type), $owner, $scope);
     }
 }

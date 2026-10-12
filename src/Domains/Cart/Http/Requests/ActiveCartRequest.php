@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Keystone\Http\Requests\Request;
 use RefactorCircus\Polycart\Domains\Cart\Actions\ActiveCartAction;
+use RefactorCircus\Polycart\Domains\Cart\Data\ActiveCartData;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
 use RefactorCircus\Polycart\Domains\Cart\Resources\CartResource;
 use RefactorCircus\Polycart\Support\Morphs;
@@ -22,27 +23,22 @@ final class ActiveCartRequest extends Request
 
     public function rules(): array
     {
-        $rules = ActiveCartAction::rules();
-
         // Acting as a user, the owner comes from the session, not the body.
-        if ($this->actor() !== null) {
-            unset($rules['owner_type'], $rules['owner_id'], $rules['session_key']);
-        }
+        $owner = $this->actor() === null ? Morphs::ownerRules(required: true) : [];
 
-        return $rules;
+        return $owner + Morphs::scopeRules() + ActiveCartData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        $data = $this->validated();
+        $validated = $this->validated();
+        $morphs = app(Morphs::class);
 
-        /** @var string $type */
-        $type = $data['type'];
-
+        // The owner rules require one when no user is acting.
         /** @var Model|string $owner */
-        $owner = app(Morphs::class)->ownerFrom($data);
+        $owner = $this->actor() ?? $morphs->ownerFrom($validated);
 
-        $cart = app(ActiveCartAction::class)->execute($type, $owner);
+        $cart = app(ActiveCartAction::class)->execute(ActiveCartData::fromValidated($validated), $owner, $morphs->scopeFrom($validated));
 
         return (new CartResource($cart->load('lines')))->response();
     }

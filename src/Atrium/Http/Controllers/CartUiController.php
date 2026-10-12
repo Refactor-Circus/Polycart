@@ -21,14 +21,21 @@ use RefactorCircus\Polycart\Domains\Cart\Actions\ListCartsAction;
 use RefactorCircus\Polycart\Domains\Cart\Actions\ShowCartAction;
 use RefactorCircus\Polycart\Domains\Cart\Actions\TransitionCartAction;
 use RefactorCircus\Polycart\Domains\Cart\Actions\UpdateCartAction;
+use RefactorCircus\Polycart\Domains\Cart\Data\ConvertCartData;
+use RefactorCircus\Polycart\Domains\Cart\Data\ListCartsData;
+use RefactorCircus\Polycart\Domains\Cart\Data\TransitionCartData;
+use RefactorCircus\Polycart\Domains\Cart\Data\UpdateCartData;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
 use RefactorCircus\Polycart\Domains\CartLine\Actions\RemoveLineAction;
 use RefactorCircus\Polycart\Domains\CartLine\Actions\UpdateLineAction;
+use RefactorCircus\Polycart\Domains\CartLine\Data\UpdateLineData;
 use RefactorCircus\Polycart\Domains\CartLine\Models\CartLineModel;
 use RefactorCircus\Polycart\Domains\CartType\Services\CartTypeRegistry;
 use RefactorCircus\Polycart\Domains\Sharing\Actions\SetVisibilityAction;
 use RefactorCircus\Polycart\Domains\Sharing\Actions\ShareCartAction;
 use RefactorCircus\Polycart\Domains\Sharing\Actions\UnshareCartAction;
+use RefactorCircus\Polycart\Domains\Sharing\Data\SetVisibilityData;
+use RefactorCircus\Polycart\Domains\Sharing\Data\ShareCartData;
 use RefactorCircus\Polycart\Domains\Sharing\Enums\Visibility;
 use RefactorCircus\Polycart\Domains\Sharing\Models\CartMemberModel;
 use RefactorCircus\Polycart\Exceptions\PolycartException;
@@ -46,18 +53,18 @@ final class CartUiController
 
     public function index(Request $request): View
     {
-        // Filters are validated by the Action's own rules, so the page and the
+        // Filters are validated by the list's own Data, so the page and the
         // JSON API accept exactly the same query.
         $this->authorizeScreen('viewAny', CartModel::class);
 
-        $filters = $request->validate(ListCartsAction::rules());
+        $filters = ListCartsData::from($request->all());
 
         /** @var view-string $view */
         $view = 'polycart::ui.carts.index';
 
         return view($view, [
             'carts' => app(ListCartsAction::class)->execute($filters, ScreenAccess::actor()),
-            'filters' => $filters,
+            'filters' => $filters->toArray(),
             'types' => array_keys(app(CartTypeRegistry::class)->all()),
             // The whole package's history, asked as its history endpoint asks it.
             'showHistory' => app(History::class)->allows(app(PackageRegistry::class)->get('polycart'), $request->user(), []),
@@ -96,10 +103,14 @@ final class CartUiController
     {
         $this->authorizeScreen('update', $cart);
 
-        $data = $request->validate(['label' => ['nullable', 'string', 'max:191'], 'meta' => ['nullable', 'json']]);
-
         // Meta arrives from the form as a JSON string.
-        $data['meta'] = is_string($data['meta'] ?? null) ? json_decode($data['meta'], true) : null;
+        $request->validate(['meta' => ['nullable', 'json']]);
+        $meta = $request->input('meta');
+
+        $data = UpdateCartData::from([
+            'label' => $request->input('label'),
+            'meta' => is_string($meta) ? json_decode($meta, true) : null,
+        ]);
 
         return $this->attempt($cart, fn (): mixed => app(UpdateCartAction::class)->execute($cart, $data), 'cart_updated');
     }
@@ -126,21 +137,20 @@ final class CartUiController
     {
         $this->authorizeScreen('transition', $cart, [$request->string('status')->toString()]);
 
-        /** @var array{status: string} $data */
-        $data = $request->validate(TransitionCartAction::rules());
+        $data = TransitionCartData::from($request->all());
 
-        return $this->attempt($cart, fn (): mixed => app(TransitionCartAction::class)->execute($cart, $data['status']), 'status_changed');
+        return $this->attempt($cart, fn (): mixed => app(TransitionCartAction::class)->execute($cart, $data), 'status_changed');
     }
 
     public function convert(Request $request, CartModel $cart): RedirectResponse
     {
         $this->authorizeScreen('convert', $cart, [$request->string('to')->toString()]);
 
-        /** @var array{to: string} $data */
-        $data = $request->validate(ConvertCartAction::rules());
+        // An unticked "keep the original" box sends nothing: retype in place.
+        $data = ConvertCartData::from(['copy' => $request->boolean('copy')] + $request->all());
 
         try {
-            $converted = app(ConvertCartAction::class)->execute($cart, $data['to'], $request->boolean('copy', true));
+            $converted = app(ConvertCartAction::class)->execute($cart, $data);
         } catch (PolycartException $e) {
             return back()->withErrors(['polycart' => $e->getMessage()]);
         }
@@ -154,14 +164,9 @@ final class CartUiController
     {
         $this->authorizeScreen('update', $line);
 
-        /** @var array{quantity: int|string, unit_price?: int|string|null} $data */
-        $data = $request->validate(UpdateLineAction::rules());
+        $data = UpdateLineData::from($request->all());
 
-        return $this->attempt($cart, fn (): mixed => app(UpdateLineAction::class)->execute(
-            $line,
-            (int) $data['quantity'],
-            isset($data['unit_price']) ? (int) $data['unit_price'] : null,
-        ), 'line_updated');
+        return $this->attempt($cart, fn (): mixed => app(UpdateLineAction::class)->execute($line, $data), 'line_updated');
     }
 
     public function removeLine(CartModel $cart, CartLineModel $line): RedirectResponse
@@ -177,23 +182,22 @@ final class CartUiController
     {
         $this->authorizeScreen('share', $cart);
 
-        /** @var array{visibility: string} $data */
-        $data = $request->validate(SetVisibilityAction::rules());
+        $data = SetVisibilityData::from($request->all());
 
-        return $this->attempt($cart, fn (): mixed => app(SetVisibilityAction::class)->execute($cart, $data['visibility']), 'visibility_changed');
+        return $this->attempt($cart, fn (): mixed => app(SetVisibilityAction::class)->execute($cart, $data), 'visibility_changed');
     }
 
     public function share(Request $request, CartModel $cart): RedirectResponse
     {
         $this->authorizeScreen('create', CartMemberModel::class, [$cart]);
 
-        /** @var array{member_type: string, member_id: string, role: string} $data */
-        $data = $request->validate(ShareCartAction::rules());
+        $member = $request->validate(Morphs::memberRules());
+        $data = ShareCartData::from($request->all());
 
         return $this->attempt($cart, fn (): mixed => app(ShareCartAction::class)->execute(
             $cart,
-            app(Morphs::class)->memberFrom($data),
-            $data['role'],
+            app(Morphs::class)->memberFrom($member),
+            $data,
         ), 'cart_shared');
     }
 

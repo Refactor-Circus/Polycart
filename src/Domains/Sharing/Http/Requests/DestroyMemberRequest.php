@@ -16,11 +16,6 @@ final class DestroyMemberRequest extends CartRequest
         return $this->allows('delete', $this->member());
     }
 
-    public function rules(): array
-    {
-        return UnshareCartAction::rules();
-    }
-
     public function persist(): Response
     {
         app(UnshareCartAction::class)->execute($this->cart(), $this->member());

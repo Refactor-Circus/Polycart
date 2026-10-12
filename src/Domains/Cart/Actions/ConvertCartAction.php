@@ -7,12 +7,14 @@ namespace RefactorCircus\Polycart\Domains\Cart\Actions;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\Carbon;
 use RefactorCircus\Keystone\Support\Surface;
+use RefactorCircus\Polycart\Domains\Cart\Data\ConvertCartData;
 use RefactorCircus\Polycart\Domains\Cart\Events\CartConvertedActionEvent;
 use RefactorCircus\Polycart\Domains\Cart\Events\CartConvertingActionEvent;
 use RefactorCircus\Polycart\Domains\Cart\Exceptions\InvalidConversionException;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
 use RefactorCircus\Polycart\Domains\CartType\Services\CartTypeRegistry;
 use RefactorCircus\Polycart\Domains\CartType\Support\CartType;
+use RefactorCircus\Polycart\Domains\Sharing\Models\CartMemberModel;
 
 /**
  * Turn a cart into another type: a cart into a quote, a quote into an order.
@@ -31,29 +33,15 @@ final class ConvertCartAction
         private readonly CartTypeRegistry $types,
     ) {}
 
-    /**
-     * @return array<string, mixed>
-     */
-    public static function rules(): array
-    {
-        return [
-            'to' => ['required', 'string', 'max:191'],
-            'copy' => ['sometimes', 'boolean'],
-        ];
-    }
-
-    /**
-     * @param  bool  $copy  Copy the cart and its lines (true) or retype it in place (false).
-     */
-    public function execute(CartModel $cart, string $to, bool $copy = true): CartModel
+    public function execute(CartModel $cart, ConvertCartData $data): CartModel
     {
         $from = $cart->type;
 
-        CartConvertingActionEvent::dispatch($cart, $to, $copy);
+        CartConvertingActionEvent::dispatch($cart, $data);
 
-        $result = $this->perform($cart, $to, $copy);
+        $result = $this->perform($cart, $data->to, $data->copy);
 
-        CartConvertedActionEvent::dispatch($cart, $result, $from, $to, $copy);
+        CartConvertedActionEvent::dispatch($cart, $result, $from, $data->to, $data->copy);
 
         return $result;
     }
@@ -94,11 +82,21 @@ final class ConvertCartAction
         $converted->inheritPlaceFrom($cart);
         $converted->save();
 
+        // The copy already holds its owner's membership; everyone else joins.
+        $held = $converted->members()->get(['member_type', 'member_id'])
+            ->mapWithKeys(fn (CartMemberModel $member): array => [$member->member_type.'|'.$member->member_id => true])
+            ->all();
+
         foreach ($cart->members()->get() as $member) {
-            $converted->members()->firstOrCreate(
-                ['member_type' => $member->member_type, 'member_id' => $member->member_id],
-                ['role' => $this->roleIn($target, $member->role)],
-            );
+            if (isset($held[$member->member_type.'|'.$member->member_id])) {
+                continue;
+            }
+
+            $converted->members()->create([
+                'member_type' => $member->member_type,
+                'member_id' => $member->member_id,
+                'role' => $this->roleIn($target, $member->role),
+            ]);
         }
 
         foreach ($cart->lines()->get() as $line) {

@@ -15,13 +15,6 @@ final class DeleteCartMcpRequest extends CartRequest
         return $this->allows('delete', $this->cart());
     }
 
-    protected function rules(): array
-    {
-        return DeleteCartAction::rules() + [
-            'cart' => ['required', 'string', 'max:26'],
-        ];
-    }
-
     protected function respond(array $validated): ResponseFactory
     {
         $cart = $this->cart();

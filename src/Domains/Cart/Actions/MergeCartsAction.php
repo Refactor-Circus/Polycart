@@ -9,6 +9,7 @@ use RefactorCircus\Polycart\Domains\Cart\Events\CartsMergedActionEvent;
 use RefactorCircus\Polycart\Domains\Cart\Events\CartsMergingActionEvent;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
 use RefactorCircus\Polycart\Domains\CartLine\Actions\AddLineAction;
+use RefactorCircus\Polycart\Domains\CartLine\Data\AddLineData;
 use RefactorCircus\Polycart\Domains\Scope\Exceptions\InvalidScopeException;
 
 /**
@@ -24,16 +25,6 @@ final class MergeCartsAction
         private readonly ConnectionInterface $db,
         private readonly AddLineAction $add,
     ) {}
-
-    /**
-     * @return array<string, mixed>
-     */
-    public static function rules(): array
-    {
-        return [
-            'into' => ['required', 'string', 'max:26'],
-        ];
-    }
 
     public function execute(CartModel $from, CartModel $into): CartModel
     {
@@ -59,25 +50,32 @@ final class MergeCartsAction
         }
 
         $this->db->transaction(function () use ($from, $into): void {
-            foreach ($from->lines()->with('purchasable')->get() as $line) {
-                // The purchasable has since been deleted; there is nothing left to add.
-                if (! $line->isCustom() && $line->purchasable === null) {
-                    continue;
-                }
-
-                $this->add->execute(
-                    $into,
-                    $line->purchasable,
-                    $line->quantity,
-                    $line->options,
-                    $line->meta,
-                    $line->unit_price,
-                );
-            }
+            // The target's lifetime is extended once, after every line.
+            $into->batchLines(function () use ($from, $into): void {
+                $this->addLines($from, $into);
+            });
 
             $from->delete();
         });
 
         return $into;
+    }
+
+    private function addLines(CartModel $from, CartModel $into): void
+    {
+        foreach ($from->lines()->with('purchasable')->get() as $line) {
+            // The purchasable has since been deleted; there is nothing left to add.
+            if (! $line->isCustom() && $line->purchasable === null) {
+                continue;
+            }
+
+            $this->add->execute($into, new AddLineData(
+                purchasable: $line->purchasable,
+                quantity: $line->quantity,
+                options: $line->options,
+                meta: $line->meta,
+                unitPrice: $line->unit_price,
+            ));
+        }
     }
 }

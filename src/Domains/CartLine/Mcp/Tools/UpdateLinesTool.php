@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Name;
 use RefactorCircus\Keystone\Mcp\Tool;
+use RefactorCircus\Polycart\Domains\Cart\Resources\CartResource;
 use RefactorCircus\Polycart\Domains\CartLine\Actions\UpdateLinesAction;
 use RefactorCircus\Polycart\Domains\CartLine\Mcp\Requests\UpdateLinesMcpRequest;
 
@@ -37,5 +38,10 @@ final class UpdateLinesTool extends Tool
                 ->max(UpdateLinesAction::MAX_LINES)
                 ->required(),
         ];
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return CartResource::structuredSchema($schema);
     }
 }

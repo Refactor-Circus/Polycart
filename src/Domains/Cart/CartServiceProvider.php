@@ -12,9 +12,16 @@ class CartServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
-        // How the audit log (refactor-circus/keen) names a cart: its label, else its id.
-        $this->app->make(AuditHooks::class)
-            ->label(CartModel::class, fn (CartModel $cart): string => $cart->label ?? $cart->id);
+        // How the audit log (refactor-circus/keen) names a cart: its label, else
+        // its id. Only while Polycart audits, known once every provider booted.
+        $this->app->booted(function (): void {
+            if (! $this->package()->audits()) {
+                return;
+            }
+
+            $this->app->make(AuditHooks::class)
+                ->label(CartModel::class, fn (CartModel $cart): string => $cart->label ?? $cart->id);
+        });
 
         $this->loadApiRoutesFrom(__DIR__.'/routes.php');
     }

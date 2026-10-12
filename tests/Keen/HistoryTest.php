@@ -5,7 +5,9 @@ declare(strict_types=1);
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Support\Facades\Schema;
+use Laravel\Mcp\Server\Transport\FakeTransporter;
 use RefactorCircus\Keen\Domains\Audit\Models\AuditEntryModel;
+use RefactorCircus\Keen\Facades\Keen;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
 use RefactorCircus\Polycart\Facades\Polycart;
 use RefactorCircus\Polycart\Mcp\PolycartServer;
@@ -109,15 +111,15 @@ it('serves a cart\'s history from the history endpoint and tool', function (): v
         ->assertOk()
         ->assertJsonFragment(['action' => 'line.added']);
 
-    PolycartServer::tool(ListPolycartHistoryTool::class, $query)
+    mcpTool(ListPolycartHistoryTool::class, $query)
         ->assertOk()
         ->assertSee('line.added');
 });
 
-it('records the cart\'s own events in its history through the deprecated recordActivity', function (): void {
+it('records the application\'s own events about a cart in its history', function (): void {
     $cart = Polycart::create('cart');
 
-    $cart->recordActivity('exported', ['reference' => 'SO-1']);
+    Keen::record('cart.exported')->source('polycart')->on($cart)->with(['reference' => 'SO-1'])->save();
 
     $entry = AuditEntryModel::query()->where('action', 'cart.exported')->sole();
 
@@ -129,5 +131,17 @@ it('records the cart\'s own events in its history through the deprecated recordA
 it('keeps every cart change in the audit log rather than a table of its own', function (): void {
     expect(Schema::hasTable('polycart_cart_activities'))->toBeFalse()
         ->and(Schema::hasColumn('polycart_carts', 'sources'))->toBeFalse()
-        ->and(method_exists(CartModel::class, 'activities'))->toBeFalse();
+        ->and(method_exists(CartModel::class, 'activities'))->toBeFalse()
+        ->and(method_exists(CartModel::class, 'recordActivity'))->toBeFalse();
+});
+
+it('keeps Polycart out of the audit log while polycart.audit.enabled is off', function (): void {
+    config()->set('polycart.audit.enabled', false);
+
+    Polycart::create('cart')->add(product());
+
+    expect(AuditEntryModel::query()->where('source', 'polycart')->count())->toBe(0)
+        ->and((new PolycartServer(new FakeTransporter))->createContext()->tools()->contains(fn (mixed $tool): bool => $tool instanceof ListPolycartHistoryTool))->toBeFalse();
+
+    $this->getJson('/polycart/history')->assertNotFound();
 });

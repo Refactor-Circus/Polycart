@@ -8,6 +8,7 @@ use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use RefactorCircus\Keystone\Contracts\ActionStartingEvent;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
+use RefactorCircus\Polycart\Domains\CartLine\Data\UpdateLinesData;
 
 /**
  * A batch of lines is about to change.
@@ -17,11 +18,8 @@ final class LinesUpdatingActionEvent implements ActionStartingEvent
     use Dispatchable;
     use SerializesModels;
 
-    /**
-     * @param  array<int, array<string, mixed>>  $changes
-     */
     public function __construct(
         public CartModel $cart,
-        public array $changes,
+        public UpdateLinesData $data,
     ) {}
 }

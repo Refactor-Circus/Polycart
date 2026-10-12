@@ -15,11 +15,6 @@ final class ClearCartRequest extends CartRequest
         return $this->allows('update', $this->cart());
     }
 
-    public function rules(): array
-    {
-        return ClearCartAction::rules();
-    }
-
     public function persist(): JsonResponse
     {
         $cart = app(ClearCartAction::class)->execute($this->cart());

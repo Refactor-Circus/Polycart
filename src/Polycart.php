@@ -12,11 +12,15 @@ use RefactorCircus\Polycart\Domains\Cart\Actions\ActiveCartAction;
 use RefactorCircus\Polycart\Domains\Cart\Actions\ConvertCartAction;
 use RefactorCircus\Polycart\Domains\Cart\Actions\CreateCartAction;
 use RefactorCircus\Polycart\Domains\Cart\Actions\MergeCartsAction;
+use RefactorCircus\Polycart\Domains\Cart\Data\ActiveCartData;
+use RefactorCircus\Polycart\Domains\Cart\Data\ConvertCartData;
+use RefactorCircus\Polycart\Domains\Cart\Data\CreateCartData;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
 use RefactorCircus\Polycart\Domains\CartType\Services\CartTypeRegistry;
 use RefactorCircus\Polycart\Domains\CartType\Support\CartType;
 use RefactorCircus\Polycart\Domains\Sharing\Actions\ShareCartAction;
 use RefactorCircus\Polycart\Domains\Sharing\Actions\UnshareCartAction;
+use RefactorCircus\Polycart\Domains\Sharing\Data\ShareCartData;
 use RefactorCircus\Polycart\Domains\Sharing\Models\CartMemberModel;
 
 /**
@@ -48,12 +52,20 @@ final class Polycart
     /**
      * Start a new cart of a type, hydrated as that type's model.
      *
-     * @param  array<string, mixed>  $attributes  Any of label, meta, parent_id.
+     * @param  array{label?: string|null, meta?: array<string, mixed>|null, parent_id?: string|null}  $attributes
      * @param  Model|null  $scope  The level of the tree it lives in, such as a team.
      */
     public function create(string $type, Model|string|null $owner = null, array $attributes = [], ?Model $scope = null): CartModel
     {
-        return $this->creator->execute($type, $owner, $attributes, $scope);
+        // The attributes are the application's own, so they are taken as given.
+        $data = new CreateCartData(
+            type: $type,
+            label: $attributes['label'] ?? null,
+            meta: $attributes['meta'] ?? null,
+            parentId: $attributes['parent_id'] ?? null,
+        );
+
+        return $this->creator->execute($data, $owner, $scope);
     }
 
     /**
@@ -65,7 +77,7 @@ final class Polycart
      */
     public function active(string $type, Model|string $owner, ?Model $scope = null): CartModel
     {
-        return $this->activator->execute($type, $owner, $scope);
+        return $this->activator->execute(new ActiveCartData($type), $owner, $scope);
     }
 
     /**
@@ -90,7 +102,7 @@ final class Polycart
      */
     public function share(CartModel $cart, Model $member, string $role): CartMemberModel
     {
-        return app(ShareCartAction::class)->execute($cart, $member, $role);
+        return app(ShareCartAction::class)->execute($cart, $member, new ShareCartData($role));
     }
 
     public function unshare(CartModel $cart, Model $member): void
@@ -116,7 +128,7 @@ final class Polycart
      */
     public function convert(CartModel $cart, string $to, bool $copy = true): CartModel
     {
-        return $this->converter->execute($cart, $to, $copy);
+        return $this->converter->execute($cart, new ConvertCartData($to, $copy));
     }
 
     /**

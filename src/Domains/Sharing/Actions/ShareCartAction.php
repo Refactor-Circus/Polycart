@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Polycart\Domains\Sharing\Actions;
 
+use Illuminate\Database\ConnectionInterface;
 use Illuminate\Database\Eloquent\Model;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
 use RefactorCircus\Polycart\Domains\Scope\Contracts\CartParticipant;
 use RefactorCircus\Polycart\Domains\Scope\Contracts\CartScope;
 use RefactorCircus\Polycart\Domains\Scope\Services\ScopeTree;
+use RefactorCircus\Polycart\Domains\Sharing\Data\ShareCartData;
 use RefactorCircus\Polycart\Domains\Sharing\Events\CartSharedActionEvent;
 use RefactorCircus\Polycart\Domains\Sharing\Events\CartSharingActionEvent;
 use RefactorCircus\Polycart\Domains\Sharing\Exceptions\SharingException;
@@ -21,25 +23,16 @@ use RefactorCircus\Polycart\Domains\Sharing\Models\CartMemberModel;
  */
 final class ShareCartAction
 {
-    public function __construct(private readonly ScopeTree $tree) {}
+    public function __construct(
+        private readonly ConnectionInterface $db,
+        private readonly ScopeTree $tree,
+    ) {}
 
-    /**
-     * @return array<string, mixed>
-     */
-    public static function rules(): array
+    public function execute(CartModel $cart, Model $member, ShareCartData $data): CartMemberModel
     {
-        return [
-            'member_type' => ['required', 'string', 'max:191'],
-            'member_id' => ['required', 'string', 'max:191'],
-            'role' => ['required', 'string', 'max:191'],
-        ];
-    }
+        CartSharingActionEvent::dispatch($cart, $member, $data);
 
-    public function execute(CartModel $cart, Model $member, string $role): CartMemberModel
-    {
-        CartSharingActionEvent::dispatch($cart, $member, $role);
-
-        $result = $this->perform($cart, $member, $role);
+        $result = $this->perform($cart, $member, $data->role);
 
         CartSharedActionEvent::dispatch($cart, $result);
 
@@ -71,16 +64,19 @@ final class ShareCartAction
 
         [$memberType, $memberId] = ScopeTree::pair($member);
 
-        $existing = $cart->members()->where('member_type', $memberType)->where('member_id', $memberId)->first();
+        // The top-role check and the write see the same members.
+        $membership = $this->db->transaction(function () use ($cart, $memberType, $memberId, $role): CartMemberModel {
+            $existing = $cart->members()->where('member_type', $memberType)->where('member_id', $memberId)->first();
 
-        if ($existing instanceof CartMemberModel && $existing->role !== $role) {
-            UnshareCartAction::guardTopRole($cart, $existing);
-        }
+            if ($existing instanceof CartMemberModel && $existing->role !== $role) {
+                UnshareCartAction::guardTopRole($cart, $existing);
+            }
 
-        $membership = $cart->members()->updateOrCreate(
-            ['member_type' => $memberType, 'member_id' => $memberId],
-            ['role' => $role],
-        );
+            return $cart->members()->updateOrCreate(
+                ['member_type' => $memberType, 'member_id' => $memberId],
+                ['role' => $role],
+            );
+        });
 
         $cart->unsetRelation('members');
 

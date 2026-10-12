@@ -21,8 +21,9 @@ use RefactorCircus\Polycart\Domains\Sharing\Models\CartMemberModel;
  * - the cart type's visibility role, when the cart's visibility covers a
  *   scope they reach.
  *
- * Roles and the abilities they grant come from the cart's type. Everything is
- * resolved at check time, so team changes apply at once.
+ * Roles and the abilities they grant come from the cart's type. What each
+ * actor reaches is read once per request (ScopeTree), so a team change shows
+ * on the next request, or at once after `ScopeTree::forget($actor)`.
  */
 final class CartAccess
 {
@@ -70,14 +71,20 @@ final class CartAccess
         $reach = array_values($this->tree->reach($actor));
         [$type, $id] = ScopeTree::pair($actor);
 
-        $query->where(function (Builder $query) use ($reach, $type, $id): void {
-            $query->whereHas('members', function (Builder $members) use ($reach, $type, $id): void {
+        // Memberships are found through their (member_type, member_id) index
+        // rather than checked cart by cart.
+        $memberships = CartMemberModel::query()
+            ->select('cart_id')
+            ->where(function (Builder $members) use ($reach, $type, $id): void {
                 $members->where(fn (Builder $member): Builder => $member->where('member_type', $type)->where('member_id', $id));
 
                 foreach ($reach as [$scopeType, $scopeId]) {
                     $members->orWhere(fn (Builder $member): Builder => $member->where('member_type', $scopeType)->where('member_id', $scopeId));
                 }
             });
+
+        $query->where(function (Builder $query) use ($reach, $memberships): void {
+            $query->whereIn($query->qualifyColumn('id'), $memberships);
 
             foreach ($reach as [$scopeType, $scopeId]) {
                 $query->orWhere(fn (Builder $cart): Builder => $cart

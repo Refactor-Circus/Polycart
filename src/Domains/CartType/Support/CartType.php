@@ -39,7 +39,7 @@ abstract class CartType
     private string $key = '';
 
     /**
-     * The key this type is registered under, stored in `polycart_carts.type`.
+     * The key this type is registered under, stored in the carts table's `type` column.
      */
     final public function key(): string
     {

@@ -6,6 +6,7 @@ namespace RefactorCircus\Polycart\Domains\Cart\Http\Requests;
 
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Polycart\Domains\Cart\Actions\ConvertCartAction;
+use RefactorCircus\Polycart\Domains\Cart\Data\ConvertCartData;
 use RefactorCircus\Polycart\Domains\Cart\Resources\CartResource;
 
 final class ConvertCartRequest extends CartRequest
@@ -17,15 +18,12 @@ final class ConvertCartRequest extends CartRequest
 
     public function rules(): array
     {
-        return ConvertCartAction::rules();
+        return ConvertCartData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        /** @var string $to */
-        $to = $this->validated('to');
-
-        $cart = app(ConvertCartAction::class)->execute($this->cart(), $to, $this->boolean('copy', true));
+        $cart = app(ConvertCartAction::class)->execute($this->cart(), ConvertCartData::fromValidated($this->validated()));
 
         return (new CartResource($cart->load('lines')))->response()->setStatusCode(201);
     }

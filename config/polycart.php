@@ -8,6 +8,8 @@ use RefactorCircus\Polycart\Domains\Cart\Policies\CartPolicy;
 use RefactorCircus\Polycart\Domains\CartLine\Models\CartLineModel;
 use RefactorCircus\Polycart\Domains\CartLine\Policies\CartLinePolicy;
 use RefactorCircus\Polycart\Domains\CartType\Support\ShoppingCart;
+use RefactorCircus\Polycart\Domains\Scope\Models\CartPathModel;
+use RefactorCircus\Polycart\Domains\Scope\Policies\CartPathPolicy;
 use RefactorCircus\Polycart\Domains\Sharing\Models\CartMemberModel;
 use RefactorCircus\Polycart\Domains\Sharing\Policies\CartMemberPolicy;
 
@@ -48,9 +50,16 @@ return [
     | Carts whose type gives them a lifetime are pruned by `model:prune` this
     | many days after they expire.
     |
+    | prune_deleted_after_days: Deleted carts of every type, including ones
+    |                           that never expire such as quotes and orders,
+    |                           are pruned for good this many days after
+    |                           they were deleted.
+    |
     */
 
     'prune_after_days' => 30,
+
+    'prune_deleted_after_days' => 30,
 
     /*
     |--------------------------------------------------------------------------
@@ -100,9 +109,11 @@ return [
     |
     | The policy the Gate uses for each model. The JSON API and MCP tools
     | check every call against these. By default a cart's owner may do
-    | anything, everyone else gets what their role grants, and lines and members
-    | follow their cart. Point a model at your own class to
-    | replace its policy; the CartModel entry covers every cart type's subclass.
+    | anything, everyone else gets what their role grants, lines and members
+    | follow their cart, and a cart's tree paths can be seen by whoever sees
+    | the cart but never changed. Every model has an entry: point one at your
+    | own class to replace its policy; the CartModel entry covers every cart
+    | type's subclass.
     |
     */
 
@@ -110,6 +121,29 @@ return [
         CartModel::class => CartPolicy::class,
         CartLineModel::class => CartLinePolicy::class,
         CartMemberModel::class => CartMemberPolicy::class,
+        CartPathModel::class => CartPathPolicy::class,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Tables
+    |--------------------------------------------------------------------------
+    |
+    | The table each of Polycart's records is stored in. Set these before
+    | running the migrations: the migrations, models and queries all read
+    | them. A published config that lists only some tables keeps the defaults
+    | for the rest.
+    |
+    | cart_paths: every level of the tree a cart lives in, written by the
+    |             cart when it is created.
+    |
+    */
+
+    'tables' => [
+        'carts' => 'polycart_carts',
+        'cart_paths' => 'polycart_cart_paths',
+        'cart_members' => 'polycart_cart_members',
+        'cart_lines' => 'polycart_cart_lines',
     ],
 
     /*
@@ -168,6 +202,26 @@ return [
         'server' => 'polycart',
         'tools' => null,
         'tags' => ['polycart'],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Audit
+    |--------------------------------------------------------------------------
+    |
+    | Polycart keeps no history of its own. With refactor-circus/keen
+    | installed, Keen records every change Polycart makes, and Polycart shows
+    | the history on its Atrium pages, its `GET /polycart/history` route and
+    | its history MCP tool. Without Keen none of that exists.
+    |
+    | enabled: Set to false to keep Polycart out of the audit log even while
+    |          Keen is installed: Keen records nothing of Polycart's, and
+    |          Polycart offers no history.
+    |
+    */
+
+    'audit' => [
+        'enabled' => true,
     ],
 
     /*

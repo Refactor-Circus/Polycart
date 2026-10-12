@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use RefactorCircus\Polycart\Domains\Cart\Http\Requests\CartRequest;
 use RefactorCircus\Polycart\Domains\Cart\Resources\CartResource;
 use RefactorCircus\Polycart\Domains\CartLine\Actions\UpdateLinesAction;
+use RefactorCircus\Polycart\Domains\CartLine\Data\UpdateLinesData;
 
 final class UpdateLinesRequest extends CartRequest
 {
@@ -18,15 +19,12 @@ final class UpdateLinesRequest extends CartRequest
 
     public function rules(): array
     {
-        return UpdateLinesAction::rules();
+        return UpdateLinesData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        /** @var array<int, array{id: string, quantity: int, unit_price?: int|null}> $lines */
-        $lines = $this->validated('lines');
-
-        $cart = app(UpdateLinesAction::class)->execute($this->cart(), $lines);
+        $cart = app(UpdateLinesAction::class)->execute($this->cart(), UpdateLinesData::fromValidated($this->validated()));
 
         return (new CartResource($cart))->response();
     }

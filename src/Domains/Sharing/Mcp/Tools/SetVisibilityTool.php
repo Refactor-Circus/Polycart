@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Name;
 use RefactorCircus\Keystone\Mcp\Tool;
+use RefactorCircus\Polycart\Domains\Cart\Resources\CartResource;
 use RefactorCircus\Polycart\Domains\Sharing\Mcp\Requests\SetVisibilityMcpRequest;
 
 #[Name('set-visibility')]
@@ -27,5 +28,10 @@ final class SetVisibilityTool extends Tool
             'cart' => $schema->string()->description('The cart id.')->required(),
             'visibility' => $schema->string()->enum(['private', 'scope', 'boundary'])->description('Who can see the cart.')->required(),
         ];
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return CartResource::structuredSchema($schema);
     }
 }

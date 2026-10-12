@@ -9,11 +9,14 @@ use Laravel\Ai\Events\ToolInvoked;
 use Laravel\Ai\Tools\Request;
 use Laravel\Mcp\Server\Transport\FakeTransporter;
 use RefactorCircus\Cortex\Domains\McpServer\Actions\CreateMcpInstructionVersionAction;
+use RefactorCircus\Cortex\Domains\McpServer\Data\CreateMcpInstructionVersionData;
 use RefactorCircus\Cortex\Domains\McpServer\Services\McpServerRegistry;
 use RefactorCircus\Cortex\Domains\Tool\Actions\CreateToolDescriptionVersionAction;
+use RefactorCircus\Cortex\Domains\Tool\Data\CreateToolDescriptionVersionData;
 use RefactorCircus\Cortex\Domains\Tool\Services\ToolRegistry;
 use RefactorCircus\Cortex\Facades\Cortex;
 use RefactorCircus\Keystone\Cortex\CortexIntegration;
+use RefactorCircus\Keystone\Mcp\Server;
 use RefactorCircus\Keystone\Packages\PackageRegistry;
 use RefactorCircus\Polycart\Domains\Cart\Mcp\Tools\ListCartsTool;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
@@ -31,8 +34,12 @@ it('registers the MCP server with Cortex', function (): void {
 it('offers every cart tool to Cortex agents', function (): void {
     $tools = app(ToolRegistry::class);
 
-    expect($tools->has('add-lines'))->toBeTrue()
-        ->and($tools->has('list-polycart-history-tool'))->toBeTrue()
+    $names = array_map(fn (string $class): string => app($class)->name(), Server::withoutHistory(PolycartServer::TOOLS));
+
+    // The history tool only while Polycart audits, and no audit log is installed here.
+    expect(array_diff($names, $tools->names()))->toBe([])
+        ->and($tools->has('add-lines'))->toBeTrue()
+        ->and($tools->has('list-polycart-history-tool'))->toBeFalse()
         ->and(array_intersect($tools->names(), ['list-carts', 'share-cart', 'remove-lines']))->toHaveCount(3)
         ->and($tools->get('create-cart'))->toBeInstanceOf(AgentTool::class);
 });
@@ -63,13 +70,13 @@ it('offers only the tools listed in config', function (): void {
 });
 
 it('serves the instructions published in Cortex', function (): void {
-    app(CreateMcpInstructionVersionAction::class)->execute('polycart', ['content' => 'Only ever touch quotes.', 'publish' => true]);
+    app(CreateMcpInstructionVersionAction::class)->execute('polycart', new CreateMcpInstructionVersionData(content: 'Only ever touch quotes.', publish: true));
 
     expect((new PolycartServer(new FakeTransporter))->createContext()->instructions)->toBe('Only ever touch quotes.');
 });
 
 it('serves tool descriptions published in Cortex, to MCP clients and agents alike', function (): void {
-    app(CreateToolDescriptionVersionAction::class)->execute('list-carts', ['content' => 'Find carts for the signed-in customer.', 'publish' => true]);
+    app(CreateToolDescriptionVersionAction::class)->execute('list-carts', new CreateToolDescriptionVersionData(content: 'Find carts for the signed-in customer.', publish: true));
 
     expect(app(ListCartsTool::class)->description())->toBe('Find carts for the signed-in customer.')
         ->and(app(ToolRegistry::class)->get('list-carts')->description())->toBe('Find carts for the signed-in customer.');

@@ -7,6 +7,7 @@ namespace RefactorCircus\Polycart\Domains\Cart\Events;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use RefactorCircus\Keystone\Contracts\ActionStartingEvent;
+use RefactorCircus\Polycart\Domains\Cart\Data\ConvertCartData;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
 
 /**
@@ -19,7 +20,6 @@ final class CartConvertingActionEvent implements ActionStartingEvent
 
     public function __construct(
         public CartModel $cart,
-        public string $to,
-        public bool $copy,
+        public ConvertCartData $data,
     ) {}
 }

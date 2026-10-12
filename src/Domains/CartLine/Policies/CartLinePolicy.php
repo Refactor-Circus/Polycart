@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Polycart\Domains\CartLine\Policies;
 
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
 use RefactorCircus\Polycart\Domains\CartLine\Models\CartLineModel;
@@ -15,27 +16,27 @@ use RefactorCircus\Polycart\Support\Policies\Policy;
  */
 class CartLinePolicy extends Policy
 {
-    public function viewAny(Model $user, CartModel $cart): bool
+    public function viewAny(Model&Authenticatable $user, CartModel $cart): bool
     {
         return $this->allowsOn($user, 'view', $cart);
     }
 
-    public function view(Model $user, CartLineModel $line): bool
+    public function view(Model&Authenticatable $user, CartLineModel $line): bool
     {
         return $this->allowsOn($user, 'view', $line->cart);
     }
 
-    public function create(Model $user, CartModel $cart): bool
+    public function create(Model&Authenticatable $user, CartModel $cart): bool
     {
         return $this->allowsOn($user, 'update', $cart);
     }
 
-    public function update(Model $user, CartLineModel $line): bool
+    public function update(Model&Authenticatable $user, CartLineModel $line): bool
     {
         return $this->allowsOn($user, 'update', $line->cart);
     }
 
-    public function delete(Model $user, CartLineModel $line): bool
+    public function delete(Model&Authenticatable $user, CartLineModel $line): bool
     {
         return $this->allowsOn($user, 'update', $line->cart);
     }

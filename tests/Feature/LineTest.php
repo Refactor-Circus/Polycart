@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Event;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
 use RefactorCircus\Polycart\Domains\CartLine\Actions\UpdateLineAction;
 use RefactorCircus\Polycart\Domains\CartLine\Contracts\PriceResolver;
+use RefactorCircus\Polycart\Domains\CartLine\Data\UpdateLineData;
 use RefactorCircus\Polycart\Domains\CartLine\Events\LineAddedActionEvent;
 use RefactorCircus\Polycart\Domains\CartLine\Events\LineRemovedActionEvent;
 use RefactorCircus\Polycart\Domains\CartLine\Events\LineUpdatedActionEvent;
@@ -137,10 +138,10 @@ it('changes a line\'s quantity and removes it at zero', function (): void {
     $cart = Polycart::create('cart');
     $line = $cart->add(product(), 2);
 
-    app(UpdateLineAction::class)->execute($line, 5);
+    app(UpdateLineAction::class)->execute($line, new UpdateLineData(5));
     expect($line->fresh()?->quantity)->toBe(5);
 
-    expect(app(UpdateLineAction::class)->execute($line, 0))->toBeNull()
+    expect(app(UpdateLineAction::class)->execute($line, new UpdateLineData(0)))->toBeNull()
         ->and($cart->lines)->toBeEmpty();
 
     Event::assertDispatched(LineUpdatedActionEvent::class, fn (LineUpdatedActionEvent $event): bool => $event->line?->quantity === 5);
@@ -154,7 +155,7 @@ it('checks a changed line against the type', function (): void {
     $line = $quote->add(product());
 
     $line->unit_price = null;
-    app(UpdateLineAction::class)->execute($line, 3);
+    app(UpdateLineAction::class)->execute($line, new UpdateLineData(3));
 })->throws(LineRejectedException::class, 'needs a unit price');
 
 it('removes a line and clears a cart', function (): void {

@@ -95,9 +95,9 @@ Event::listen(ActionFinishedEvent::class, fn (ActionFinishedEvent $event) => Met
 | Action start events | Immediately, before the action touches the database |
 | Action finish events | After the surrounding transaction commits (`ShouldDispatchAfterCommit`), and not at all if it rolls back |
 
-Because finish events wait for the commit, listeners never hear about work that was undone. That covers:
+Every action does its writes in one transaction of its own (a savepoint inside yours), so a failure part-way leaves nothing behind. Because finish events wait for the commit, listeners never hear about work that was undone. That covers:
 
-- a batch that was refused part-way
+- a batch that was refused part-way, or a cart clear that failed part-way
 - a conversion that failed validation
 - your own `DB::transaction()` that threw after calling Polycart
 
@@ -105,29 +105,31 @@ Outside a transaction, finish events fire straight away.
 
 ## Every action and its events
 
+A start event carries the action's input as its Data object (`$event->data`, or `$event->filters` for a list), the same object the action was called with.
+
 | Action | Start event (carries) | Finish event (carries) |
 | --- | --- | --- |
-| `ActiveCartAction` | `ActiveCartResolvingActionEvent` (`type`, `owner`, `scope`) | `ActiveCartResolvedActionEvent` (`cart`) |
-| `AddLineAction` | `LineAddingActionEvent` (`cart`, `purchasable`, `quantity`, `options`, `meta`, `unitPrice`) | `LineAddedActionEvent` (`cart`, `line`, `merged`) |
-| `AddLinesAction` | `LinesAddingActionEvent` (`cart`, `lines`) | `LinesAddedActionEvent` (`cart`, `lines`) |
+| `ActiveCartAction` | `ActiveCartResolvingActionEvent` (`data`: `ActiveCartData`, `owner`, `scope`) | `ActiveCartResolvedActionEvent` (`cart`) |
+| `AddLineAction` | `LineAddingActionEvent` (`cart`, `data`: `AddLineData`) | `LineAddedActionEvent` (`cart`, `line`, `merged`) |
+| `AddLinesAction` | `LinesAddingActionEvent` (`cart`, `data`: `AddLinesData`) | `LinesAddedActionEvent` (`cart`, `lines`) |
 | `ClearCartAction` | `CartClearingActionEvent` (`cart`) | `CartClearedActionEvent` (`cart`) |
-| `ConvertCartAction` | `CartConvertingActionEvent` (`cart`, `to`, `copy`) | `CartConvertedActionEvent` (`source`, `cart`, `from`, `to`, `copy`) |
-| `CreateCartAction` | `CartCreatingActionEvent` (`type`, `owner`, `attributes`, `scope`) | `CartCreatedActionEvent` (`cart`) |
+| `ConvertCartAction` | `CartConvertingActionEvent` (`cart`, `data`: `ConvertCartData`) | `CartConvertedActionEvent` (`source`, `cart`, `from`, `to`, `copy`) |
+| `CreateCartAction` | `CartCreatingActionEvent` (`data`: `CreateCartData`, `owner`, `scope`) | `CartCreatedActionEvent` (`cart`) |
 | `DeleteCartAction` | `CartDeletingActionEvent` (`cart`) | `CartDeletedActionEvent` (`cart`) |
 | `ListCartTypesAction` | `CartTypesListingActionEvent` (none) | `CartTypesListedActionEvent` (`types`) |
-| `ListCartsAction` | `CartsListingActionEvent` (`filters`, `viewer`) | `CartsListedActionEvent` (`carts`, `viewer`) |
+| `ListCartsAction` | `CartsListingActionEvent` (`filters`: `ListCartsData`, `viewer`) | `CartsListedActionEvent` (`carts`, `viewer`) |
 | `ListMembersAction` | `MembersListingActionEvent` (`cart`) | `MembersListedActionEvent` (`cart`, `members`) |
 | `MergeCartsAction` | `CartsMergingActionEvent` (`from`, `into`) | `CartsMergedActionEvent` (`from`, `into`) |
 | `RemoveLineAction` | `LineRemovingActionEvent` (`cart`, `line`) | `LineRemovedActionEvent` (`cart`, `lineId`) |
-| `RemoveLinesAction` | `LinesRemovingActionEvent` (`cart`, `lines`) | `LinesRemovedActionEvent` (`cart`, `lineIds`) |
-| `SetVisibilityAction` | `VisibilityChangingActionEvent` (`cart`, `to`) | `VisibilityChangedActionEvent` (`cart`, `from`, `to`) |
-| `ShareCartAction` | `CartSharingActionEvent` (`cart`, `member`, `role`) | `CartSharedActionEvent` (`cart`, `member`) |
+| `RemoveLinesAction` | `LinesRemovingActionEvent` (`cart`, `data`: `RemoveLinesData`) | `LinesRemovedActionEvent` (`cart`, `lineIds`) |
+| `SetVisibilityAction` | `VisibilityChangingActionEvent` (`cart`, `data`: `SetVisibilityData`) | `VisibilityChangedActionEvent` (`cart`, `from`, `to`) |
+| `ShareCartAction` | `CartSharingActionEvent` (`cart`, `member`, `data`: `ShareCartData`) | `CartSharedActionEvent` (`cart`, `member`) |
 | `ShowCartAction` | `CartShowingActionEvent` (`cart`) | `CartShownActionEvent` (`cart`) |
-| `TransitionCartAction` | `CartTransitioningActionEvent` (`cart`, `to`) | `CartTransitionedActionEvent` (`cart`, `from`, `to`) |
+| `TransitionCartAction` | `CartTransitioningActionEvent` (`cart`, `data`: `TransitionCartData`) | `CartTransitionedActionEvent` (`cart`, `from`, `to`) |
 | `UnshareCartAction` | `CartUnsharingActionEvent` (`cart`, `member`) | `CartUnsharedActionEvent` (`cart`, `memberType`, `memberId`) |
-| `UpdateCartAction` | `CartUpdatingActionEvent` (`cart`, `data`) | `CartUpdatedActionEvent` (`cart`, `changed`) |
-| `UpdateLineAction` | `LineUpdatingActionEvent` (`cart`, `line`, `quantity`, `unitPrice`) | `LineUpdatedActionEvent` (`cart`, `line`) |
-| `UpdateLinesAction` | `LinesUpdatingActionEvent` (`cart`, `changes`) | `LinesUpdatedActionEvent` (`cart`) |
+| `UpdateCartAction` | `CartUpdatingActionEvent` (`cart`, `data`: `UpdateCartData`) | `CartUpdatedActionEvent` (`cart`, `changed`) |
+| `UpdateLineAction` | `LineUpdatingActionEvent` (`cart`, `line`, `data`: `UpdateLineData`) | `LineUpdatedActionEvent` (`cart`, `line`) |
+| `UpdateLinesAction` | `LinesUpdatingActionEvent` (`cart`, `data`: `UpdateLinesData`) | `LinesUpdatedActionEvent` (`cart`) |
 
 Notes on particular events:
 

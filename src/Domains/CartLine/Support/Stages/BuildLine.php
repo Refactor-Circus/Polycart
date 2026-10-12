@@ -36,7 +36,7 @@ final class BuildLine implements AddLineStage
             'unit_price' => $line->unitPrice,
             'options' => $line->options,
             'meta' => $line->meta,
-            'position' => ((int) $line->cart->lines()->max('position')) + 1,
+            'position' => $line->cart->nextLinePosition(),
         ]);
 
         $built->cart()->associate($line->cart);

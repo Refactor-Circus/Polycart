@@ -7,6 +7,7 @@ namespace RefactorCircus\Polycart\Domains\Cart\Events;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use RefactorCircus\Keystone\Contracts\ActionStartingEvent;
+use RefactorCircus\Polycart\Domains\Cart\Data\UpdateCartData;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
 
 /**
@@ -17,11 +18,8 @@ final class CartUpdatingActionEvent implements ActionStartingEvent
     use Dispatchable;
     use SerializesModels;
 
-    /**
-     * @param  array<string, mixed>  $data
-     */
     public function __construct(
         public CartModel $cart,
-        public array $data,
+        public UpdateCartData $data,
     ) {}
 }

@@ -34,6 +34,15 @@ php artisan migrate
 
 The migrations create `polycart_carts`, `polycart_cart_lines`, `polycart_cart_members` and `polycart_cart_paths`. Prices are stored as integers in minor units (cents).
 
+To use other table names, set `polycart.tables` in the published config before migrating. The migrations, models and queries all read it, and keys left out keep their default:
+
+```php
+'tables' => [
+    'carts' => 'shop_carts',
+    'cart_lines' => 'shop_cart_lines',
+],
+```
+
 To customise the Atrium dashboard's views or strings, publish them with the `polycart-views` or `polycart-lang` tag. The `polycart` tag publishes everything at once.
 
 ## Defining types
@@ -347,7 +356,7 @@ With `polycart.authorization` on (the default), every call acts as the authentic
 
 - Lists show only the carts that user can access.
 - New carts are owned by that user.
-- Every call goes through the Gate, using the policies in `polycart.policies`. By default a cart's owner may do anything with it and everyone else gets what their role grants. Point a model at your own policy class to replace it.
+- Every call goes through the Gate, using the policies in `polycart.policies`, which has an entry for every Polycart model. By default a cart's owner may do anything with it and everyone else gets what their role grants; lines and members follow their cart, and a cart's tree paths are visible to whoever sees the cart but never changed. Point a model at your own policy class to replace it.
 
 Turn authorization off only for trusted server-to-server use.
 
@@ -371,7 +380,7 @@ Turn authorization off only for trusted server-to-server use.
 | `POST` | `/carts/{cart}/members` | Share with a `member_type` and `member_id` (a person or a scope) as a `role` |
 | `DELETE` | `/carts/{cart}/members/{member}` | Remove a member |
 | `PUT` | `/carts/{cart}/visibility` | Set `visibility` to `private`, `scope` or `boundary` |
-| `GET` | `/history` | Polycart's audit history from [refactor-circus/keen](https://github.com/Refactor-Circus/Keen), filterable by `subject_type` and `subject_id` (one cart's history: its morph class and id), `action`; cursor paginated. Answers `404` until an audit log is installed. Named `polycart.history.index`. |
+| `GET` | `/history` | Polycart's audit history from [refactor-circus/keen](https://github.com/Refactor-Circus/Keen), filterable by `subject_type` and `subject_id` (one cart's history: its morph class and id), `action`; cursor paginated. Answers `404` until an audit log is installed, or while `polycart.audit.enabled` is `false`. Named `polycart.history.index`. |
 
 When a type refuses a request, the API returns `422` with a message that explains why, such as `A [quote] cart cannot move from [submitted] to [draft].`
 
@@ -384,7 +393,7 @@ The same operations are available as MCP tools, so an agent can manage carts:
 - `transition-cart`, `convert-cart`, `merge-carts`
 - `add-lines`, `update-lines`, `remove-lines`
 - `list-members`, `share-cart`, `unshare-cart`, `set-visibility`
-- `list-polycart-history-tool`, the audit history, for Polycart or one cart (needs an audit log such as refactor-circus/keen installed)
+- `list-polycart-history-tool`, the audit history, for Polycart or one cart (offered only while an audit log such as refactor-circus/keen is installed and `polycart.audit.enabled` is on)
 
 ```php
 'mcp' => [
@@ -393,7 +402,20 @@ The same operations are available as MCP tools, so an agent can manage carts:
 ],
 ```
 
-The JSON API, the MCP tools and the dashboard all call the same action classes and share their validation rules. An architecture test fails the build if any action is missing from the JSON API or the MCP server.
+Each tool answers with structured content shaped like the JSON API's response: a cart, line or member under `data`, and a list under `data` with its page under `meta` (`list-carts` pages by cursor: pass `meta.next_cursor` back as `cursor`). Every tool declares an output schema for it.
+
+The JSON API, the MCP tools and the dashboard all call the same action classes, and each action takes its input as a Data object (`CreateCartData`, `AddLinesData`, ...) that holds the validation rules, so every surface checks a call exactly the same way. An architecture test fails the build if any action is missing from the JSON API or the MCP server.
+
+Calling an action yourself, build its Data with `new` (or `XData::from($input)` to validate untrusted input first):
+
+```php
+use RefactorCircus\Polycart\Domains\Cart\Actions\ConvertCartAction;
+use RefactorCircus\Polycart\Domains\Cart\Data\ConvertCartData;
+
+app(ConvertCartAction::class)->execute($cart, new ConvertCartData(to: 'order', copy: false));
+```
+
+The facade and the cart's own methods (`Polycart::create()`, `$cart->add()`, `$cart->addLines()`, `$cart->convertTo()`, ...) build the Data for you.
 
 ## Cortex
 
@@ -500,7 +522,7 @@ Every event carries the models involved. Events for a removed line or member car
 
 ## Pruning
 
-A cart whose type has a `lifetime()` gets an `expires_at`. It is pruned `polycart.prune_after_days` days after it expires:
+A cart whose type has a `lifetime()` gets an `expires_at`. It is pruned `polycart.prune_after_days` days after it expires. A deleted cart, of any type and whether it expires or not, is pruned for good `polycart.prune_deleted_after_days` days (default 30) after it was deleted:
 
 ```php
 Schedule::command('model:prune', ['--model' => [\RefactorCircus\Polycart\Domains\Cart\Models\CartModel::class]])->daily();

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Polycart\Domains\Cart\Mcp\Requests;
 
-use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Polycart\Domains\Cart\Actions\MergeCartsAction;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
@@ -23,8 +22,8 @@ final class MergeCartsMcpRequest extends CartRequest
 
     protected function rules(): array
     {
-        return MergeCartsAction::rules() + [
-            'cart' => ['required', 'string', 'max:26'],
+        return $this->cartRules() + [
+            'into' => ['required', 'string', 'max:26'],
         ];
     }
 
@@ -35,6 +34,6 @@ final class MergeCartsMcpRequest extends CartRequest
 
         $cart = app(MergeCartsAction::class)->execute($this->cart(), CartModel::query()->findOrFail($into));
 
-        return Response::structured((new CartResource($cart->load('lines')))->resolve());
+        return (new CartResource($cart->load('lines')))->toStructuredResponse();
     }
 }

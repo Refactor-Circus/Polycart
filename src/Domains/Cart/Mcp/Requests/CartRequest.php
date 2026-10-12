@@ -11,6 +11,22 @@ use RefactorCircus\Polycart\Mcp\Request;
 
 abstract class CartRequest extends Request
 {
+    /**
+     * The cart the call names; requests with input add their Data's rules.
+     */
+    protected function rules(): array
+    {
+        return $this->cartRules();
+    }
+
+    /**
+     * @return array<string, array<int, string>>
+     */
+    protected function cartRules(): array
+    {
+        return ['cart' => ['required', 'string', 'max:26']];
+    }
+
     protected function cart(): CartModel
     {
         /** @var string $id */

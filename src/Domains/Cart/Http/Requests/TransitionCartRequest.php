@@ -6,6 +6,7 @@ namespace RefactorCircus\Polycart\Domains\Cart\Http\Requests;
 
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Polycart\Domains\Cart\Actions\TransitionCartAction;
+use RefactorCircus\Polycart\Domains\Cart\Data\TransitionCartData;
 use RefactorCircus\Polycart\Domains\Cart\Resources\CartResource;
 
 final class TransitionCartRequest extends CartRequest
@@ -17,15 +18,12 @@ final class TransitionCartRequest extends CartRequest
 
     public function rules(): array
     {
-        return TransitionCartAction::rules();
+        return TransitionCartData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        /** @var string $status */
-        $status = $this->validated('status');
-
-        $cart = app(TransitionCartAction::class)->execute($this->cart(), $status);
+        $cart = app(TransitionCartAction::class)->execute($this->cart(), TransitionCartData::fromValidated($this->validated()));
 
         return (new CartResource($cart))->response();
     }

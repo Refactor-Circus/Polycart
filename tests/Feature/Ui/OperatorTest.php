@@ -13,7 +13,6 @@ use RefactorCircus\Polycart\Atrium\ScreenAccess;
 use RefactorCircus\Polycart\Domains\Cart\Mcp\Tools\ListCartsTool;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
 use RefactorCircus\Polycart\Facades\Polycart;
-use RefactorCircus\Polycart\Mcp\PolycartServer;
 use RefactorCircus\Polycart\Tests\Fixtures\Models\Person;
 
 /**
@@ -149,7 +148,7 @@ it('leaves the JSON API and MCP tools to the user\'s role with show_all on', fun
     $this->actingAs($this->bob)->deleteJson("/polycart/carts/{$this->cart->id}")->assertForbidden();
     $this->actingAs($this->bob)->getJson('/polycart/carts')->assertOk()->assertJsonCount(0, 'data');
 
-    PolycartServer::actingAs($this->bob)->tool(ListCartsTool::class)
+    mcpToolAs($this->bob, ListCartsTool::class)
         ->assertOk()
         ->assertStructuredContent(fn (AssertableJson $json): AssertableJson => $json->has('data', 0)->etc());
 

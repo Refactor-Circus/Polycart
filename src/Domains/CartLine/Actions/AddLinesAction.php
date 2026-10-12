@@ -6,8 +6,8 @@ namespace RefactorCircus\Polycart\Domains\CartLine\Actions;
 
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Model;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
+use RefactorCircus\Polycart\Domains\CartLine\Data\AddLinesData;
 use RefactorCircus\Polycart\Domains\CartLine\Events\LinesAddedActionEvent;
 use RefactorCircus\Polycart\Domains\CartLine\Events\LinesAddingActionEvent;
 use RefactorCircus\Polycart\Domains\CartLine\Exceptions\LineRejectedException;
@@ -33,35 +33,13 @@ final class AddLinesAction
     ) {}
 
     /**
-     * Each line takes the same fields as a single add, under `lines.*`.
-     *
-     * @return array<string, mixed>
-     */
-    public static function rules(): array
-    {
-        $rules = ['lines' => ['required', 'array', 'list', 'min:1', 'max:'.self::MAX_LINES]];
-
-        foreach (AddLineAction::rules() as $field => $fieldRules) {
-            $rules['lines.*.'.$field] = array_map(
-                fn (mixed $rule): mixed => is_string($rule) && str_starts_with($rule, 'required_with:')
-                    ? 'required_with:lines.*.'.substr($rule, strlen('required_with:'))
-                    : $rule,
-                (array) $fieldRules,
-            );
-        }
-
-        return $rules;
-    }
-
-    /**
-     * @param  array<int, array{purchasable?: Model|null, quantity?: int, options?: array<string, mixed>, meta?: array<string, mixed>, unit_price?: int|null}>  $lines
      * @return Collection<int, CartLineModel>
      */
-    public function execute(CartModel $cart, array $lines): Collection
+    public function execute(CartModel $cart, AddLinesData $data): Collection
     {
-        LinesAddingActionEvent::dispatch($cart, $lines);
+        LinesAddingActionEvent::dispatch($cart, $data);
 
-        $result = $this->perform($cart, $lines);
+        $result = $this->perform($cart, $data);
 
         LinesAddedActionEvent::dispatch($cart, $result);
 
@@ -69,30 +47,23 @@ final class AddLinesAction
     }
 
     /**
-     * @param  array<int, array{purchasable?: Model|null, quantity?: int, options?: array<string, mixed>, meta?: array<string, mixed>, unit_price?: int|null}>  $lines
      * @return Collection<int, CartLineModel>
      */
-    private function perform(CartModel $cart, array $lines): Collection
+    private function perform(CartModel $cart, AddLinesData $data): Collection
     {
-        return $this->db->transaction(function () use ($cart, $lines): Collection {
+        // The cart's lifetime is extended once, when the batch ends.
+        return $this->db->transaction(fn (): Collection => $cart->batchLines(function () use ($cart, $data): Collection {
             $added = new Collection;
 
-            foreach (array_values($lines) as $index => $line) {
+            foreach ($data->lines as $index => $line) {
                 try {
-                    $added->push($this->add->execute(
-                        $cart,
-                        $line['purchasable'] ?? null,
-                        $line['quantity'] ?? 1,
-                        $line['options'] ?? [],
-                        $line['meta'] ?? [],
-                        $line['unit_price'] ?? null,
-                    ));
+                    $added->push($this->add->execute($cart, $line));
                 } catch (LineRejectedException $e) {
                     throw $e->atLine($index);
                 }
             }
 
             return $added;
-        });
+        }));
     }
 }

@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
 use RefactorCircus\Polycart\Domains\Scope\Exceptions\InvalidScopeException;
+use RefactorCircus\Polycart\Domains\Scope\Services\ScopeTree;
 use RefactorCircus\Polycart\Domains\Sharing\Enums\Visibility;
 use RefactorCircus\Polycart\Domains\Sharing\Events\CartSharedActionEvent;
 use RefactorCircus\Polycart\Domains\Sharing\Events\CartUnsharedActionEvent;
@@ -87,7 +89,7 @@ it('shares with someone in another team of the same organization', function (): 
     Event::assertDispatched(CartSharedActionEvent::class, fn (CartSharedActionEvent $event): bool => $event->member->role === 'editor');
 });
 
-it('gives a shared team access to whoever is on it when access is checked', function (): void {
+it('gives a shared team access to whoever is on it, from the next request', function (): void {
     $acme = organization();
     $sales = team($acme, 'Sales');
     $ops = team($acme, 'Ops');
@@ -99,13 +101,37 @@ it('gives a shared team access to whoever is on it when access is checked', func
 
     expect($cart->roleFor($dan))->toBeNull();
 
+    // Within one request, what Dan reaches is read once.
     $dan->teams()->attach($ops);
+    expect($cart->roleFor($dan))->toBeNull();
+
+    // A new request (a fresh scoped instance) reads it again.
+    app()->forgetScopedInstances();
     expect($cart->roleFor($dan))->toBe('viewer')
         ->and($dan->accessibleCarts()->count())->toBe(1);
 
+    // Code that changes someone's teams mid-request forgets what they reach.
     $dan->teams()->detach($ops);
+    app(ScopeTree::class)->forget($dan);
     expect($cart->roleFor($dan))->toBeNull()
         ->and($dan->accessibleCarts()->count())->toBe(0);
+});
+
+it('reads what an actor reaches once per request', function (): void {
+    $acme = organization();
+    $sales = team($acme, 'Sales');
+    $ann = person($sales);
+    $carts = collect(range(1, 5))->map(fn (): CartModel => Polycart::create('cart', person($sales), scope: $sales)->setVisibility('scope'));
+
+    $carts->each->load('members');
+    app()->forgetScopedInstances();
+
+    DB::enableQueryLog();
+    $roles = $carts->map(fn (CartModel $cart): ?string => $cart->roleFor($ann))->all();
+
+    // Ann's teams and their organization are read for the first cart only.
+    expect($roles)->toBe(array_fill(0, 5, 'viewer'))
+        ->and(count(DB::getQueryLog()))->toBeLessThanOrEqual(2);
 });
 
 it('gives the strongest of someone\'s roles', function (): void {

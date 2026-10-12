@@ -15,11 +15,6 @@ final class ShowCartRequest extends CartRequest
         return $this->allows('view', $this->cart());
     }
 
-    public function rules(): array
-    {
-        return ShowCartAction::rules();
-    }
-
     public function persist(): JsonResponse
     {
         return (new CartResource(app(ShowCartAction::class)->execute($this->cart())))->response();

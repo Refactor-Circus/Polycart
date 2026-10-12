@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Name;
 use RefactorCircus\Keystone\Mcp\Tool;
+use RefactorCircus\Polycart\Domains\Cart\Resources\CartResource;
 use RefactorCircus\Polycart\Domains\CartLine\Actions\RemoveLinesAction;
 use RefactorCircus\Polycart\Domains\CartLine\Mcp\Requests\RemoveLinesMcpRequest;
 
@@ -33,5 +34,10 @@ final class RemoveLinesTool extends Tool
                 ->max(RemoveLinesAction::MAX_LINES)
                 ->required(),
         ];
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return CartResource::structuredSchema($schema);
     }
 }

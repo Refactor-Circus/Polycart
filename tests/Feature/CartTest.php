@@ -129,6 +129,32 @@ it('gives an owner model its own carts', function (): void {
         ->and($user->carts()->count())->toBe(2);
 });
 
+it('prunes deleted carts of every type once the deleted grace period has passed', function (): void {
+    Carbon::setTestNow('2026-01-01 12:00:00');
+    $oldQuote = Polycart::create('quote', user());
+    $oldOrder = Polycart::create('order', user());
+    $kept = Polycart::create('quote', user());
+    $oldQuote->delete();
+    $oldOrder->delete();
+
+    Carbon::setTestNow('2026-01-25 12:00:00');
+    $recent = Polycart::create('quote', user());
+    $recent->delete();
+
+    Carbon::setTestNow('2026-02-15 12:00:00');
+    $this->artisan('model:prune', ['--model' => [CartModel::class]])->assertSuccessful();
+
+    expect(CartModel::withTrashed()->find($oldQuote->id))->toBeNull()
+        ->and(CartModel::withTrashed()->find($oldOrder->id))->toBeNull()
+        ->and(CartModel::withTrashed()->find($recent->id))->not->toBeNull()
+        ->and(CartModel::query()->find($kept->id))->not->toBeNull();
+
+    config()->set('polycart.prune_deleted_after_days', 7);
+    $this->artisan('model:prune', ['--model' => [CartModel::class]])->assertSuccessful();
+
+    expect(CartModel::withTrashed()->find($recent->id))->toBeNull();
+});
+
 it('filters carts by owner, type and status', function (): void {
     $user = user();
     Polycart::create('cart', $user);

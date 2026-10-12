@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use RefactorCircus\Keystone\Contracts\ActionStartingEvent;
+use RefactorCircus\Polycart\Domains\Cart\Data\CreateCartData;
 
 /**
  * A cart is about to be created.
@@ -17,13 +18,9 @@ final class CartCreatingActionEvent implements ActionStartingEvent
     use Dispatchable;
     use SerializesModels;
 
-    /**
-     * @param  array<string, mixed>  $attributes
-     */
     public function __construct(
-        public string $type,
+        public CreateCartData $data,
         public Model|string|null $owner,
-        public array $attributes,
         public ?Model $scope,
     ) {}
 }

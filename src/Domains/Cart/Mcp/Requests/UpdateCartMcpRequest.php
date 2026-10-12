@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Polycart\Domains\Cart\Mcp\Requests;
 
-use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Polycart\Domains\Cart\Actions\UpdateCartAction;
+use RefactorCircus\Polycart\Domains\Cart\Data\UpdateCartData;
 use RefactorCircus\Polycart\Domains\Cart\Resources\CartResource;
 
 final class UpdateCartMcpRequest extends CartRequest
@@ -18,15 +18,13 @@ final class UpdateCartMcpRequest extends CartRequest
 
     protected function rules(): array
     {
-        return UpdateCartAction::rules() + [
-            'cart' => ['required', 'string', 'max:26'],
-        ];
+        return $this->cartRules() + UpdateCartData::rules();
     }
 
     protected function respond(array $validated): ResponseFactory
     {
-        $cart = app(UpdateCartAction::class)->execute($this->cart(), $validated);
+        $cart = app(UpdateCartAction::class)->execute($this->cart(), UpdateCartData::fromValidated($validated));
 
-        return Response::structured((new CartResource($cart))->resolve());
+        return (new CartResource($cart))->toStructuredResponse();
     }
 }

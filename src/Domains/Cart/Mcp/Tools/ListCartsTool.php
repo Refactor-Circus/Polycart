@@ -10,7 +10,9 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Name;
 use RefactorCircus\Keystone\Mcp\Tool;
+use RefactorCircus\Polycart\Domains\Cart\Data\ListCartsData;
 use RefactorCircus\Polycart\Domains\Cart\Mcp\Requests\ListCartsMcpRequest;
+use RefactorCircus\Polycart\Domains\Cart\Resources\CartResource;
 
 #[Name('list-carts')]
 #[Description('List carts, newest first. Filter by type, status, owner, guest session key, parent, root, or a label search. Cursor paginated.')]
@@ -34,10 +36,13 @@ final class ListCartsTool extends Tool
             'root' => $schema->string()->description('Only carts anywhere in the tree under this root cart id.'),
             'search' => $schema->string()->description('Match against the label, or the start of the id.'),
             'unexpired' => $schema->boolean()->description('Leave out expired carts.'),
-            'cursor' => $schema->string()->description('Cursor from a previous page.'),
-            'per_page' => $schema->integer()->description('Results per page, 1-200.')->min(1)->max(200),
             'scope_type' => $schema->string()->description('Only carts anywhere under this scope alias. Requires scope_id.'),
             'scope_id' => $schema->string()->description('Key of the scope model.'),
-        ];
+        ] + ListCartsData::pagination()->schema($schema);
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return CartResource::collectionSchema($schema, ListCartsData::pagination());
     }
 }

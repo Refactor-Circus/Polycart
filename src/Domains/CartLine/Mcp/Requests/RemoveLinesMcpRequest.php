@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Polycart\Domains\CartLine\Mcp\Requests;
 
-use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Polycart\Domains\Cart\Mcp\Requests\CartRequest;
 use RefactorCircus\Polycart\Domains\Cart\Resources\CartResource;
 use RefactorCircus\Polycart\Domains\CartLine\Actions\RemoveLinesAction;
+use RefactorCircus\Polycart\Domains\CartLine\Data\RemoveLinesData;
 
 final class RemoveLinesMcpRequest extends CartRequest
 {
@@ -19,18 +19,13 @@ final class RemoveLinesMcpRequest extends CartRequest
 
     protected function rules(): array
     {
-        return RemoveLinesAction::rules() + [
-            'cart' => ['required', 'string', 'max:26'],
-        ];
+        return $this->cartRules() + RemoveLinesData::rules();
     }
 
     protected function respond(array $validated): ResponseFactory
     {
-        /** @var array<int, string> $lines */
-        $lines = $validated['lines'];
+        $cart = app(RemoveLinesAction::class)->execute($this->cart(), RemoveLinesData::fromValidated($validated));
 
-        $cart = app(RemoveLinesAction::class)->execute($this->cart(), $lines);
-
-        return Response::structured((new CartResource($cart))->resolve());
+        return (new CartResource($cart))->toStructuredResponse();
     }
 }

@@ -17,15 +17,8 @@ final class ListCartTypesMcpRequest extends Request
         return parent::authorize() && $this->allows('viewAny', CartModel::class);
     }
 
-    protected function rules(): array
-    {
-        return ListCartTypesAction::rules();
-    }
-
     protected function respond(array $validated): ResponseFactory
     {
-        return $this->structuredCollection(
-            CartTypeResource::collection(app(ListCartTypesAction::class)->execute())->resolve(),
-        );
+        return CartTypeResource::collection(app(ListCartTypesAction::class)->execute())->toStructuredResponse();
     }
 }

@@ -7,9 +7,11 @@ namespace RefactorCircus\Polycart\Domains\Cart\Actions;
 use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use RefactorCircus\Polycart\Domains\Cart\Data\ListCartsData;
 use RefactorCircus\Polycart\Domains\Cart\Events\CartsListedActionEvent;
 use RefactorCircus\Polycart\Domains\Cart\Events\CartsListingActionEvent;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
+use RefactorCircus\Polycart\Domains\Scope\Models\CartPathModel;
 use RefactorCircus\Polycart\Support\Morphs;
 
 final class ListCartsAction
@@ -17,34 +19,10 @@ final class ListCartsAction
     public function __construct(private readonly Morphs $morphs) {}
 
     /**
-     * @return array<string, mixed>
-     */
-    public static function rules(): array
-    {
-        return [
-            'type' => ['sometimes', 'string', 'max:191'],
-            'status' => ['sometimes', 'string', 'max:191'],
-            'source' => ['sometimes', 'string', 'max:191'],
-            'owner_type' => ['nullable', 'string', 'max:191', 'required_with:owner_id'],
-            'owner_id' => ['nullable', 'string', 'max:191', 'required_with:owner_type'],
-            'session_key' => ['sometimes', 'string', 'max:191'],
-            'parent' => ['sometimes', 'string', 'max:26'],
-            'root' => ['sometimes', 'string', 'max:26'],
-            'scope_type' => ['nullable', 'string', 'max:191', 'required_with:scope_id'],
-            'scope_id' => ['nullable', 'string', 'max:191', 'required_with:scope_type'],
-            'search' => ['sometimes', 'string', 'max:191'],
-            'unexpired' => ['sometimes', 'boolean'],
-            'cursor' => ['sometimes', 'nullable', 'string'],
-            'per_page' => ['sometimes', 'integer', 'min:1', 'max:200'],
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $filters
      * @param  Model|null  $viewer  When given, only carts they can access.
      * @return CursorPaginator<int, CartModel>
      */
-    public function execute(array $filters = [], ?Model $viewer = null): CursorPaginator
+    public function execute(ListCartsData $filters = new ListCartsData, ?Model $viewer = null): CursorPaginator
     {
         CartsListingActionEvent::dispatch($filters, $viewer);
 
@@ -56,11 +34,10 @@ final class ListCartsAction
     }
 
     /**
-     * @param  array<string, mixed>  $filters
      * @param  Model|null  $viewer  When given, only carts they can access.
      * @return CursorPaginator<int, CartModel>
      */
-    private function perform(array $filters = [], ?Model $viewer = null): CursorPaginator
+    private function perform(ListCartsData $filters, ?Model $viewer = null): CursorPaginator
     {
         $query = CartModel::query()->withCount('lines')->latest()->latest('id');
 
@@ -68,38 +45,48 @@ final class ListCartsAction
             $query->accessibleBy($viewer);
         }
 
-        if (is_string($filters['scope_type'] ?? null) && is_string($filters['scope_id'] ?? null)) {
-            $query->whereHas('paths', fn (Builder $paths): Builder => $paths
-                ->where('scope_type', $this->morphs->scopeMorphClass($filters['scope_type']))
-                ->where('scope_id', $filters['scope_id']));
+        if ($filters->scopeType !== null && $filters->scopeId !== null) {
+            $scopeType = $this->morphs->scopeMorphClass($filters->scopeType);
+            $scopeId = $filters->scopeId;
+
+            $query->whereIn($query->qualifyColumn('id'), CartPathModel::query()
+                ->select('cart_id')
+                ->where('scope_type', $scopeType)
+                ->where('scope_id', $scopeId));
         }
 
-        foreach (['type' => 'type', 'status' => 'status', 'source' => 'source', 'session_key' => 'session_key', 'parent' => 'parent_id', 'root' => 'root_id'] as $filter => $column) {
-            if (is_string($filters[$filter] ?? null)) {
-                $query->where($column, $filters[$filter]);
+        $columns = [
+            'type' => $filters->type,
+            'status' => $filters->status,
+            'source' => $filters->source,
+            'session_key' => $filters->sessionKey,
+            'parent_id' => $filters->parent,
+            'root_id' => $filters->root,
+        ];
+
+        foreach ($columns as $column => $value) {
+            if ($value !== null) {
+                $query->where($column, $value);
             }
         }
 
-        if (is_string($filters['owner_type'] ?? null) && is_string($filters['owner_id'] ?? null)) {
-            $query->where('owner_type', $this->morphs->ownerMorphClass($filters['owner_type']))
-                ->where('owner_id', $filters['owner_id']);
+        if ($filters->ownerType !== null && $filters->ownerId !== null) {
+            $query->where('owner_type', $this->morphs->ownerMorphClass($filters->ownerType))
+                ->where('owner_id', $filters->ownerId);
         }
 
-        if (is_string($filters['search'] ?? null)) {
-            $search = $filters['search'];
+        if ($filters->search !== null) {
+            $search = $filters->search;
 
             $query->where(fn (Builder $query): Builder => $query
                 ->where('label', 'like', '%'.$search.'%')
                 ->orWhere('id', 'like', $search.'%'));
         }
 
-        if (filter_var($filters['unexpired'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+        if ($filters->unexpired) {
             $query->unexpired();
         }
 
-        return $query->cursorPaginate(
-            perPage: isset($filters['per_page']) && is_numeric($filters['per_page']) ? (int) $filters['per_page'] : 25,
-            cursor: is_string($filters['cursor'] ?? null) ? $filters['cursor'] : null,
-        );
+        return $query->cursorPaginate(perPage: $filters->perPage, cursor: $filters->cursor);
     }
 }

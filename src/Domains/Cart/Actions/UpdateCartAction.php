@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Polycart\Domains\Cart\Actions;
 
+use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\Arr;
+use RefactorCircus\Polycart\Domains\Cart\Data\UpdateCartData;
 use RefactorCircus\Polycart\Domains\Cart\Events\CartUpdatedActionEvent;
 use RefactorCircus\Polycart\Domains\Cart\Events\CartUpdatingActionEvent;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
@@ -17,21 +19,9 @@ use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
  */
 final class UpdateCartAction
 {
-    /**
-     * @return array<string, mixed>
-     */
-    public static function rules(): array
-    {
-        return [
-            'label' => ['sometimes', 'nullable', 'string', 'max:191'],
-            'meta' => ['sometimes', 'nullable', 'array'],
-        ];
-    }
+    public function __construct(private readonly ConnectionInterface $db) {}
 
-    /**
-     * @param  array<string, mixed>  $data
-     */
-    public function execute(CartModel $cart, array $data): CartModel
+    public function execute(CartModel $cart, UpdateCartData $data): CartModel
     {
         CartUpdatingActionEvent::dispatch($cart, $data);
 
@@ -42,14 +32,11 @@ final class UpdateCartAction
         return $result;
     }
 
-    /**
-     * @param  array<string, mixed>  $data
-     */
-    private function perform(CartModel $cart, array $data): CartModel
+    private function perform(CartModel $cart, UpdateCartData $data): CartModel
     {
-        $cart->fill(Arr::only($data, ['label', 'meta']));
+        $cart->fill($data->toArray());
 
-        $cart->save();
+        $this->db->transaction(fn (): bool => $cart->save());
 
         return $cart;
     }

@@ -241,7 +241,7 @@ With `polycart.authorization` on, which is the default, each call is checked aga
 | History | `GET /history?subject_type=...&subject_id=...` | `list-polycart-history-tool` | `view` on the cart; Polycart's whole history needs the `viewAuditLog` Gate ability when defined |
 | Visibility | `.../visibility` | `set-visibility` | `share` |
 
-A failed check returns `403` over HTTP and `Unauthorized.` over MCP. Turn `polycart.authorization` off only for trusted server-to-server callers.
+A failed check returns `403` over HTTP (`401` for a caller who is not signed in) and `Unauthorized.` over MCP. Turn `polycart.authorization` off only for trusted server-to-server callers.
 
 The Atrium dashboard asks the same questions, with one exception: users made operators by `polycart.atrium.show_all` (`true`, or a Gate ability's name) see every cart there and may take every action on it. The API and MCP never treat anyone as an operator.
 
@@ -254,6 +254,7 @@ Polycart registers a policy for each of its models from `polycart.policies`:
     CartModel::class => \RefactorCircus\Polycart\Domains\Cart\Policies\CartPolicy::class,
     CartLineModel::class => \RefactorCircus\Polycart\Domains\CartLine\Policies\CartLinePolicy::class,
     CartMemberModel::class => \RefactorCircus\Polycart\Domains\Sharing\Policies\CartMemberPolicy::class,
+    CartPathModel::class => \RefactorCircus\Polycart\Domains\Scope\Policies\CartPathPolicy::class,
 ],
 ```
 
@@ -262,8 +263,9 @@ What the bundled policies allow:
 - **`CartPolicy`**: a cart's owner may do anything with it. Everyone else gets what their role on the cart grants. Anyone signed in passes `viewAny` and `create`. The `CartModel` entry also covers every type's subclass.
 - **`CartLinePolicy`**: reading lines needs `view` on the cart. Adding, changing or removing them needs `update`.
 - **`CartMemberPolicy`**: listing members needs `view` on the cart. Sharing, changing a role or unsharing needs `share`.
+- **`CartPathPolicy`**: reading a cart's tree paths needs `view` on the cart. Paths are written by the cart when it is created, so creating, changing or removing one is never allowed.
 
-The line and member policies ask the Gate about the cart, so they follow whichever cart policy is registered.
+The line, member and path policies ask the Gate about the cart, so they follow whichever cart policy is registered.
 
 ### Replacing a policy
 

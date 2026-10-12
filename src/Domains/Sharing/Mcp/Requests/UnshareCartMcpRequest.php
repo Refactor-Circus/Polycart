@@ -19,8 +19,7 @@ final class UnshareCartMcpRequest extends CartRequest
 
     protected function rules(): array
     {
-        return UnshareCartAction::rules() + [
-            'cart' => ['required', 'string', 'max:26'],
+        return $this->cartRules() + [
             'member' => ['required', 'string', 'max:26'],
         ];
     }

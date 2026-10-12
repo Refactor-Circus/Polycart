@@ -4,19 +4,14 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Polycart\Domains\CartLine\Actions;
 
+use Illuminate\Database\ConnectionInterface;
 use RefactorCircus\Polycart\Domains\CartLine\Events\LineRemovedActionEvent;
 use RefactorCircus\Polycart\Domains\CartLine\Events\LineRemovingActionEvent;
 use RefactorCircus\Polycart\Domains\CartLine\Models\CartLineModel;
 
 final class RemoveLineAction
 {
-    /**
-     * @return array<string, mixed>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
+    public function __construct(private readonly ConnectionInterface $db) {}
 
     public function execute(CartLineModel $line): void
     {
@@ -34,9 +29,12 @@ final class RemoveLineAction
     {
         $cart = $line->cart;
 
-        $line->delete();
+        $this->db->transaction(function () use ($line, $cart): void {
+            $line->delete();
 
-        $cart->extendLifetime();
+            $cart->extendLifetime();
+        });
+
         $cart->unsetRelation('lines');
     }
 }

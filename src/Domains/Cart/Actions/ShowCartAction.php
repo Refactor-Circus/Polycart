@@ -11,14 +11,6 @@ use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
 final class ShowCartAction
 {
     /**
-     * @return array<string, mixed>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
-    /**
      * The cart with its lines, members, and the size of the tree beneath it.
      */
     public function execute(CartModel $cart): CartModel

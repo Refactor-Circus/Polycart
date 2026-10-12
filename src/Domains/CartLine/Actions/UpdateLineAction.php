@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Polycart\Domains\CartLine\Actions;
 
+use Illuminate\Database\ConnectionInterface;
+use RefactorCircus\Polycart\Domains\CartLine\Data\UpdateLineData;
 use RefactorCircus\Polycart\Domains\CartLine\Events\LineUpdatedActionEvent;
 use RefactorCircus\Polycart\Domains\CartLine\Events\LineUpdatingActionEvent;
 use RefactorCircus\Polycart\Domains\CartLine\Models\CartLineModel;
@@ -13,26 +15,18 @@ use RefactorCircus\Polycart\Domains\CartLine\Models\CartLineModel;
  */
 final class UpdateLineAction
 {
-    public function __construct(private readonly RemoveLineAction $remove) {}
+    public function __construct(
+        private readonly ConnectionInterface $db,
+        private readonly RemoveLineAction $remove,
+    ) {}
 
-    /**
-     * @return array<string, mixed>
-     */
-    public static function rules(): array
-    {
-        return [
-            'quantity' => ['required', 'integer', 'min:0'],
-            'unit_price' => ['sometimes', 'nullable', 'integer', 'min:0'],
-        ];
-    }
-
-    public function execute(CartLineModel $line, int $quantity, ?int $unitPrice = null): ?CartLineModel
+    public function execute(CartLineModel $line, UpdateLineData $data): ?CartLineModel
     {
         $cart = $line->cart;
 
-        LineUpdatingActionEvent::dispatch($cart, $line, $quantity, $unitPrice);
+        LineUpdatingActionEvent::dispatch($cart, $line, $data);
 
-        $result = $this->perform($line, $quantity, $unitPrice);
+        $result = $this->perform($line, $data->quantity, $data->unitPrice);
 
         LineUpdatedActionEvent::dispatch($cart, $result);
 
@@ -53,9 +47,13 @@ final class UpdateLineAction
         $line->unit_price = $unitPrice ?? $line->unit_price;
 
         $cart->cartType()->validate($cart, $line);
-        $line->save();
 
-        $cart->extendLifetime();
+        $this->db->transaction(function () use ($line, $cart): void {
+            $line->save();
+
+            $cart->extendLifetime();
+        });
+
         $cart->unsetRelation('lines');
 
         return $line;

@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Polycart\Domains\Cart\Actions;
 
+use Illuminate\Database\ConnectionInterface;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Arr;
+use RefactorCircus\Polycart\Domains\Cart\Data\CreateCartData;
 use RefactorCircus\Polycart\Domains\Cart\Events\CartCreatedActionEvent;
 use RefactorCircus\Polycart\Domains\Cart\Events\CartCreatingActionEvent;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
@@ -21,38 +22,20 @@ use RefactorCircus\Polycart\Domains\Scope\Services\ScopeTree;
 final class CreateCartAction
 {
     public function __construct(
+        private readonly ConnectionInterface $db,
         private readonly CartTypeRegistry $types,
         private readonly ScopeTree $tree,
     ) {}
 
     /**
-     * @return array<string, mixed>
-     */
-    public static function rules(): array
-    {
-        return [
-            'type' => ['required', 'string', 'max:191'],
-            'owner_type' => ['nullable', 'string', 'max:191', 'required_with:owner_id', 'prohibits:session_key'],
-            'owner_id' => ['nullable', 'string', 'max:191', 'required_with:owner_type'],
-            'session_key' => ['sometimes', 'nullable', 'string', 'max:191'],
-            'label' => ['sometimes', 'nullable', 'string', 'max:191'],
-            'meta' => ['sometimes', 'nullable', 'array'],
-            'parent_id' => ['sometimes', 'nullable', 'string', 'max:26'],
-            'scope_type' => ['nullable', 'string', 'max:191', 'required_with:scope_id'],
-            'scope_id' => ['nullable', 'string', 'max:191', 'required_with:scope_type'],
-        ];
-    }
-
-    /**
      * @param  Model|string|null  $owner  A model, or a guest's session key.
-     * @param  array<string, mixed>  $attributes  Any of label, meta, parent_id.
      * @param  Model|null  $scope  The level of the tree the cart lives in, such as a team.
      */
-    public function execute(string $type, Model|string|null $owner = null, array $attributes = [], ?Model $scope = null): CartModel
+    public function execute(CreateCartData $data, Model|string|null $owner = null, ?Model $scope = null): CartModel
     {
-        CartCreatingActionEvent::dispatch($type, $owner, $attributes, $scope);
+        CartCreatingActionEvent::dispatch($data, $owner, $scope);
 
-        $result = $this->perform($type, $owner, $attributes, $scope);
+        $result = $this->perform($data, $owner, $scope);
 
         CartCreatedActionEvent::dispatch($result);
 
@@ -61,18 +44,17 @@ final class CreateCartAction
 
     /**
      * @param  Model|string|null  $owner  A model, or a guest's session key.
-     * @param  array<string, mixed>  $attributes  Any of label, meta, parent_id.
      * @param  Model|null  $scope  The level of the tree the cart lives in, such as a team.
      */
-    private function perform(string $type, Model|string|null $owner = null, array $attributes = [], ?Model $scope = null): CartModel
+    private function perform(CreateCartData $data, Model|string|null $owner = null, ?Model $scope = null): CartModel
     {
-        $class = $this->types->get($type)->model();
+        $class = $this->types->get($data->type)->model();
 
         /** @var CartModel $cart */
         $cart = new $class;
 
-        $cart->fill(Arr::only($attributes, ['label', 'meta', 'parent_id']));
-        $cart->forceFill([...self::owner($owner), 'type' => $type]);
+        $cart->fill(['label' => $data->label, 'meta' => $data->meta, 'parent_id' => $data->parentId]);
+        $cart->forceFill([...self::owner($owner), 'type' => $data->type]);
 
         if ($scope !== null) {
             if (! $scope instanceof CartScope) {
@@ -87,9 +69,12 @@ final class CreateCartAction
             $cart->placeIn($scope);
         }
 
-        $cart->save();
+        // The cart, its place in the tree and its creator's membership land together.
+        return $this->db->transaction(function () use ($cart): CartModel {
+            $cart->save();
 
-        return $cart;
+            return $cart;
+        });
     }
 
     /**

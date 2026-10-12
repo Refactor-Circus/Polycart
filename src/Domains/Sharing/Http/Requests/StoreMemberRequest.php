@@ -7,6 +7,7 @@ namespace RefactorCircus\Polycart\Domains\Sharing\Http\Requests;
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Polycart\Domains\Cart\Http\Requests\CartRequest;
 use RefactorCircus\Polycart\Domains\Sharing\Actions\ShareCartAction;
+use RefactorCircus\Polycart\Domains\Sharing\Data\ShareCartData;
 use RefactorCircus\Polycart\Domains\Sharing\Models\CartMemberModel;
 use RefactorCircus\Polycart\Domains\Sharing\Resources\CartMemberResource;
 use RefactorCircus\Polycart\Support\Morphs;
@@ -20,17 +21,14 @@ final class StoreMemberRequest extends CartRequest
 
     public function rules(): array
     {
-        return ShareCartAction::rules();
+        return Morphs::memberRules() + ShareCartData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        $data = $this->validated();
+        $validated = $this->validated();
 
-        /** @var string $role */
-        $role = $data['role'];
-
-        $member = app(ShareCartAction::class)->execute($this->cart(), app(Morphs::class)->memberFrom($data), $role);
+        $member = app(ShareCartAction::class)->execute($this->cart(), app(Morphs::class)->memberFrom($validated), ShareCartData::fromValidated($validated));
 
         return (new CartMemberResource($member))->response();
     }

@@ -7,6 +7,7 @@ namespace RefactorCircus\Polycart\Domains\Cart\Http\Requests;
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Keystone\Http\Requests\Request;
 use RefactorCircus\Polycart\Domains\Cart\Actions\CreateCartAction;
+use RefactorCircus\Polycart\Domains\Cart\Data\CreateCartData;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
 use RefactorCircus\Polycart\Domains\Cart\Resources\CartResource;
 use RefactorCircus\Polycart\Support\Morphs;
@@ -27,22 +28,18 @@ final class StoreCartRequest extends Request
 
     public function rules(): array
     {
-        return CreateCartAction::rules();
+        return Morphs::ownerRules() + Morphs::scopeRules() + CreateCartData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        $data = $this->validated();
-
-        /** @var string $type */
-        $type = $data['type'];
-
+        $validated = $this->validated();
         $morphs = app(Morphs::class);
 
         // Acting as a user, the user is always the owner.
-        $owner = $this->actor() ?? $morphs->ownerFrom($data);
+        $owner = $this->actor() ?? $morphs->ownerFrom($validated);
 
-        $cart = app(CreateCartAction::class)->execute($type, $owner, $data, $morphs->scopeFrom($data));
+        $cart = app(CreateCartAction::class)->execute(CreateCartData::fromValidated($validated), $owner, $morphs->scopeFrom($validated));
 
         return (new CartResource($cart->load('lines')))->response()->setStatusCode(201);
     }

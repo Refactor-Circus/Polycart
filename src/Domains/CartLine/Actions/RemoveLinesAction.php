@@ -6,6 +6,7 @@ namespace RefactorCircus\Polycart\Domains\CartLine\Actions;
 
 use Illuminate\Database\ConnectionInterface;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
+use RefactorCircus\Polycart\Domains\CartLine\Data\RemoveLinesData;
 use RefactorCircus\Polycart\Domains\CartLine\Events\LinesRemovedActionEvent;
 use RefactorCircus\Polycart\Domains\CartLine\Events\LinesRemovingActionEvent;
 use RefactorCircus\Polycart\Domains\CartLine\Exceptions\LineRejectedException;
@@ -27,27 +28,13 @@ final class RemoveLinesAction
         private readonly RemoveLineAction $remove,
     ) {}
 
-    /**
-     * @return array<string, mixed>
-     */
-    public static function rules(): array
+    public function execute(CartModel $cart, RemoveLinesData $data): CartModel
     {
-        return [
-            'lines' => ['required', 'array', 'list', 'min:1', 'max:'.self::MAX_LINES],
-            'lines.*' => ['required', 'string', 'max:26', 'distinct'],
-        ];
-    }
+        LinesRemovingActionEvent::dispatch($cart, $data);
 
-    /**
-     * @param  array<int, CartLineModel|string>  $lines  Lines, or their ids.
-     */
-    public function execute(CartModel $cart, array $lines): CartModel
-    {
-        LinesRemovingActionEvent::dispatch($cart, $lines);
+        $result = $this->perform($cart, $data->lines);
 
-        $result = $this->perform($cart, $lines);
-
-        LinesRemovedActionEvent::dispatch($result, array_map(fn (CartLineModel|string $line): string => $line instanceof CartLineModel ? $line->id : $line, array_values($lines)));
+        LinesRemovedActionEvent::dispatch($result, array_map(fn (CartLineModel|string $line): string => $line instanceof CartLineModel ? $line->id : $line, $data->lines));
 
         return $result;
     }
@@ -58,13 +45,18 @@ final class RemoveLinesAction
     private function perform(CartModel $cart, array $lines): CartModel
     {
         $this->db->transaction(function () use ($cart, $lines): void {
-            foreach (array_values($lines) as $index => $line) {
-                try {
-                    $this->remove->execute(LineLookup::in($cart, $line));
-                } catch (LineRejectedException $e) {
-                    throw $e->atLine($index);
+            $found = LineLookup::lock($cart, $lines);
+
+            // The cart's lifetime is extended once, when the batch ends.
+            $cart->batchLines(function () use ($lines, $found): void {
+                foreach (array_values($lines) as $index => $line) {
+                    try {
+                        $this->remove->execute($found->in($line));
+                    } catch (LineRejectedException $e) {
+                        throw $e->atLine($index);
+                    }
                 }
-            }
+            });
         });
 
         return $cart->unsetRelation('lines')->load('lines');

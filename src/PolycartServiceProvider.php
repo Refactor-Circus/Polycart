@@ -55,6 +55,7 @@ class PolycartServiceProvider extends PackageServiceProvider
         $this->registerCortex();
 
         $this->loadHistoryRoutes();
+        $this->registerNotFoundResponses();
 
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'polycart');
 

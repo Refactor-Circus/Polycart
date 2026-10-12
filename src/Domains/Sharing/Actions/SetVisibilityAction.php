@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Polycart\Domains\Sharing\Actions;
 
-use Illuminate\Validation\Rule;
+use Illuminate\Database\ConnectionInterface;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
+use RefactorCircus\Polycart\Domains\Sharing\Data\SetVisibilityData;
 use RefactorCircus\Polycart\Domains\Sharing\Enums\Visibility;
 use RefactorCircus\Polycart\Domains\Sharing\Events\VisibilityChangedActionEvent;
 use RefactorCircus\Polycart\Domains\Sharing\Events\VisibilityChangingActionEvent;
@@ -16,32 +17,23 @@ use RefactorCircus\Polycart\Domains\Sharing\Exceptions\SharingException;
  */
 final class SetVisibilityAction
 {
-    /**
-     * @return array<string, mixed>
-     */
-    public static function rules(): array
-    {
-        return [
-            'visibility' => ['required', Rule::enum(Visibility::class)],
-        ];
-    }
+    public function __construct(private readonly ConnectionInterface $db) {}
 
-    public function execute(CartModel $cart, Visibility|string $visibility): CartModel
+    public function execute(CartModel $cart, SetVisibilityData $data): CartModel
     {
         $from = $cart->visibility ?? Visibility::Private;
 
-        VisibilityChangingActionEvent::dispatch($cart, $visibility instanceof Visibility ? $visibility : Visibility::from($visibility));
+        VisibilityChangingActionEvent::dispatch($cart, $data);
 
-        $result = $this->perform($cart, $visibility);
+        $result = $this->perform($cart, $data->visibility);
 
         VisibilityChangedActionEvent::dispatch($result, $from, $result->visibility ?? Visibility::Private);
 
         return $result;
     }
 
-    private function perform(CartModel $cart, Visibility|string $visibility): CartModel
+    private function perform(CartModel $cart, Visibility $to): CartModel
     {
-        $to = $visibility instanceof Visibility ? $visibility : Visibility::from($visibility);
         $from = $cart->visibility ?? Visibility::Private;
 
         if ($to !== Visibility::Private) {
@@ -59,7 +51,8 @@ final class SetVisibilityAction
         }
 
         $cart->visibility = $to;
-        $cart->save();
+
+        $this->db->transaction(fn (): bool => $cart->save());
 
         return $cart;
     }

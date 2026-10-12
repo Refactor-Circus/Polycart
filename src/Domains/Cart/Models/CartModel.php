@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace RefactorCircus\Polycart\Domains\Cart\Models;
 
 use BackedEnum;
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -15,12 +16,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
-use RefactorCircus\Keen\Facades\Keen;
 use RefactorCircus\Keystone\Models\Concerns\DispatchesModelEvents;
 use RefactorCircus\Keystone\Support\Surface;
 use RefactorCircus\Polycart\Domains\Cart\Actions\ClearCartAction;
 use RefactorCircus\Polycart\Domains\Cart\Actions\ConvertCartAction;
 use RefactorCircus\Polycart\Domains\Cart\Actions\TransitionCartAction;
+use RefactorCircus\Polycart\Domains\Cart\Data\ConvertCartData;
+use RefactorCircus\Polycart\Domains\Cart\Data\TransitionCartData;
 use RefactorCircus\Polycart\Domains\Cart\Exceptions\InvalidParentException;
 use RefactorCircus\Polycart\Domains\CartLine\Actions\AddLineAction;
 use RefactorCircus\Polycart\Domains\CartLine\Actions\AddLinesAction;
@@ -28,6 +30,12 @@ use RefactorCircus\Polycart\Domains\CartLine\Actions\RemoveLineAction;
 use RefactorCircus\Polycart\Domains\CartLine\Actions\RemoveLinesAction;
 use RefactorCircus\Polycart\Domains\CartLine\Actions\UpdateLineAction;
 use RefactorCircus\Polycart\Domains\CartLine\Actions\UpdateLinesAction;
+use RefactorCircus\Polycart\Domains\CartLine\Data\AddLineData;
+use RefactorCircus\Polycart\Domains\CartLine\Data\AddLinesData;
+use RefactorCircus\Polycart\Domains\CartLine\Data\LineChangeData;
+use RefactorCircus\Polycart\Domains\CartLine\Data\RemoveLinesData;
+use RefactorCircus\Polycart\Domains\CartLine\Data\UpdateLineData;
+use RefactorCircus\Polycart\Domains\CartLine\Data\UpdateLinesData;
 use RefactorCircus\Polycart\Domains\CartLine\Models\CartLineModel;
 use RefactorCircus\Polycart\Domains\CartType\Services\CartTypeRegistry;
 use RefactorCircus\Polycart\Domains\CartType\Support\CartType;
@@ -36,9 +44,11 @@ use RefactorCircus\Polycart\Domains\Scope\Exceptions\InvalidScopeException;
 use RefactorCircus\Polycart\Domains\Scope\Models\CartPathModel;
 use RefactorCircus\Polycart\Domains\Scope\Services\ScopeTree;
 use RefactorCircus\Polycart\Domains\Sharing\Actions\SetVisibilityAction;
+use RefactorCircus\Polycart\Domains\Sharing\Data\SetVisibilityData;
 use RefactorCircus\Polycart\Domains\Sharing\Enums\Visibility;
 use RefactorCircus\Polycart\Domains\Sharing\Models\CartMemberModel;
 use RefactorCircus\Polycart\Domains\Sharing\Services\CartAccess;
+use RefactorCircus\Polycart\Support\Tables;
 
 /**
  * A cart of any type.
@@ -90,14 +100,27 @@ class CartModel extends Model
      */
     protected static ?string $cartType = null;
 
-    protected $table = 'polycart_carts';
-
     /**
      * The tree levels to record once the cart has an id.
      *
      * @var array<int, array{scope_type: string, scope_id: string, depth: int}>
      */
     private array $pendingPaths = [];
+
+    /**
+     * How many `batchLines()` calls are open on this instance.
+     */
+    private int $lineBatchDepth = 0;
+
+    /**
+     * Whether a line change inside the open batch asked for a longer lifetime.
+     */
+    private bool $lifetimeDeferred = false;
+
+    /**
+     * The position the next new line takes inside the open batch, once read.
+     */
+    private ?int $nextLinePosition = null;
 
     protected $fillable = [
         'type',
@@ -110,6 +133,11 @@ class CartModel extends Model
         'meta',
         'expires_at',
     ];
+
+    public function getTable(): string
+    {
+        return Tables::name('carts');
+    }
 
     protected static function booted(): void
     {
@@ -274,33 +302,11 @@ class CartModel extends Model
     }
 
     /**
-     * Record one of the application's own events about this cart in the
-     * suite-wide audit log (refactor-circus/keen), stamped with the signed-in user and
-     * the current surface. An action without a dot is prefixed with `cart.`
-     * (`exported` becomes `cart.exported`). Without refactor-circus/keen installed it
-     * does nothing.
-     *
-     * @deprecated Call `Keen::record($action)->source('polycart')->on($cart)->with($context)->save()` instead.
-     *
-     * @param  array<string, mixed>  $context
-     */
-    public function recordActivity(BackedEnum|string $action, array $context = []): void
-    {
-        if (! class_exists(Keen::class)) {
-            return;
-        }
-
-        $action = $action instanceof BackedEnum ? (string) $action->value : $action;
-
-        Keen::record(str_contains($action, '.') ? $action : 'cart.'.$action)->source('polycart')->on($this)->with($context)->save();
-    }
-
-    /**
      * Change who sees this cart without being shared in.
      */
     public function setVisibility(Visibility|string $visibility): static
     {
-        app(SetVisibilityAction::class)->execute($this, $visibility);
+        app(SetVisibilityAction::class)->execute($this, new SetVisibilityData($visibility instanceof Visibility ? $visibility : Visibility::from($visibility)));
 
         return $this;
     }
@@ -329,7 +335,7 @@ class CartModel extends Model
      */
     public function add(?Model $purchasable, int $quantity = 1, array $options = [], array $meta = [], ?int $unitPrice = null): CartLineModel
     {
-        return app(AddLineAction::class)->execute($this, $purchasable, $quantity, $options, $meta, $unitPrice);
+        return app(AddLineAction::class)->execute($this, new AddLineData($purchasable, $quantity, $options, $meta, $unitPrice));
     }
 
     /**
@@ -341,7 +347,13 @@ class CartModel extends Model
      */
     public function addLines(array $lines): Collection
     {
-        return app(AddLinesAction::class)->execute($this, $lines);
+        return app(AddLinesAction::class)->execute($this, new AddLinesData(array_map(fn (array $line): AddLineData => new AddLineData(
+            purchasable: $line['purchasable'] ?? null,
+            quantity: $line['quantity'] ?? 1,
+            options: $line['options'] ?? [],
+            meta: $line['meta'] ?? [],
+            unitPrice: $line['unit_price'] ?? null,
+        ), array_values($lines))));
     }
 
     /**
@@ -352,7 +364,11 @@ class CartModel extends Model
      */
     public function updateLines(array $changes): static
     {
-        app(UpdateLinesAction::class)->execute($this, $changes);
+        app(UpdateLinesAction::class)->execute($this, new UpdateLinesData(array_map(fn (array $change): LineChangeData => new LineChangeData(
+            id: $change['id'],
+            quantity: $change['quantity'],
+            unitPrice: $change['unit_price'] ?? null,
+        ), array_values($changes))));
 
         return $this;
     }
@@ -364,7 +380,7 @@ class CartModel extends Model
      */
     public function removeLines(array $lines): static
     {
-        app(RemoveLinesAction::class)->execute($this, $lines);
+        app(RemoveLinesAction::class)->execute($this, new RemoveLinesData(array_values($lines)));
 
         return $this;
     }
@@ -374,7 +390,7 @@ class CartModel extends Model
      */
     public function updateLine(CartLineModel $line, int $quantity, ?int $unitPrice = null): ?CartLineModel
     {
-        return app(UpdateLineAction::class)->execute($line, $quantity, $unitPrice);
+        return app(UpdateLineAction::class)->execute($line, new UpdateLineData($quantity, $unitPrice));
     }
 
     public function remove(CartLineModel $line): void
@@ -392,7 +408,7 @@ class CartModel extends Model
 
     public function transitionTo(BackedEnum|string $status): static
     {
-        app(TransitionCartAction::class)->execute($this, $status);
+        app(TransitionCartAction::class)->execute($this, new TransitionCartData((string) self::statusValue($status)));
 
         return $this;
     }
@@ -405,7 +421,7 @@ class CartModel extends Model
      */
     public function convertTo(string $type, bool $copy = true): CartModel
     {
-        return app(ConvertCartAction::class)->execute($this, $type, $copy);
+        return app(ConvertCartAction::class)->execute($this, new ConvertCartData($type, $copy));
     }
 
     /**
@@ -437,7 +453,7 @@ class CartModel extends Model
      */
     public function lines(): HasMany
     {
-        return $this->hasMany(CartLineModel::class, 'cart_id')->orderBy('position');
+        return $this->hasMany(CartLineModel::class, 'cart_id')->chaperone('cart')->orderBy('position');
     }
 
     /**
@@ -445,7 +461,7 @@ class CartModel extends Model
      */
     public function members(): HasMany
     {
-        return $this->hasMany(CartMemberModel::class, 'cart_id');
+        return $this->hasMany(CartMemberModel::class, 'cart_id')->chaperone('cart');
     }
 
     /**
@@ -556,7 +572,8 @@ class CartModel extends Model
      */
     public function scopeInScope(Builder $query, Model $scope): void
     {
-        $query->whereHas('paths', fn (Builder $paths): Builder => $paths
+        $query->whereIn($query->qualifyColumn('id'), CartPathModel::query()
+            ->select('cart_id')
             ->where('scope_type', $scope->getMorphClass())
             ->where('scope_id', (string) $scope->getKey()));
     }
@@ -609,7 +626,9 @@ class CartModel extends Model
     }
 
     /**
-     * Carts past their expiry by more than the configured grace period.
+     * Carts past their expiry by more than `polycart.prune_after_days`, and
+     * deleted carts once they have been deleted for longer than
+     * `polycart.prune_deleted_after_days`, whether their type expires or not.
      *
      * @return Builder<static>
      */
@@ -618,19 +637,86 @@ class CartModel extends Model
         /** @var int $grace */
         $grace = config('polycart.prune_after_days', 30);
 
+        /** @var int $deletedGrace */
+        $deletedGrace = config('polycart.prune_deleted_after_days', 30);
+
         return static::query()
             ->withoutGlobalScope('polycart.type')
-            ->whereNotNull('expires_at')
-            ->where('expires_at', '<=', Carbon::now()->subDays($grace));
+            ->where(fn (Builder $query): Builder => $query
+                ->where(fn (Builder $expired): Builder => $expired
+                    ->whereNotNull('expires_at')
+                    ->where('expires_at', '<=', Carbon::now()->subDays($grace)))
+                ->orWhere(fn (Builder $deleted): Builder => $deleted
+                    ->whereNotNull('deleted_at')
+                    ->where('deleted_at', '<=', Carbon::now()->subDays($deletedGrace))));
     }
 
     /**
-     * Push the expiry back by the type's lifetime after a change.
+     * Run several line changes as one batch: the cart's lifetime is
+     * extended, and the cart touched, once at the end rather than once per
+     * line, and new lines' positions are counted here rather than read back
+     * for each line. Call it inside the batch's transaction.
+     *
+     * @internal
+     *
+     * @template TResult
+     *
+     * @param  Closure(): TResult  $callback
+     * @return TResult
+     */
+    public function batchLines(Closure $callback): mixed
+    {
+        $outermost = $this->lineBatchDepth === 0;
+        $this->lineBatchDepth++;
+
+        try {
+            $result = $callback();
+        } finally {
+            $this->lineBatchDepth--;
+
+            if ($outermost) {
+                $this->nextLinePosition = null;
+            }
+        }
+
+        if ($outermost && $this->lifetimeDeferred) {
+            $this->lifetimeDeferred = false;
+            $this->extendLifetime();
+        }
+
+        return $result;
+    }
+
+    /**
+     * The position a new line takes: after every line the cart holds.
+     *
+     * @internal
+     */
+    public function nextLinePosition(): int
+    {
+        if ($this->lineBatchDepth === 0) {
+            return ((int) $this->lines()->max('position')) + 1;
+        }
+
+        $this->nextLinePosition ??= ((int) $this->lines()->max('position')) + 1;
+
+        return $this->nextLinePosition++;
+    }
+
+    /**
+     * Push the expiry back by the type's lifetime after a change. Inside
+     * `batchLines()` it happens once, when the batch ends.
      *
      * @internal
      */
     public function extendLifetime(): void
     {
+        if ($this->lineBatchDepth > 0) {
+            $this->lifetimeDeferred = true;
+
+            return;
+        }
+
         $expiry = self::expiry($this->cartType());
 
         if ($expiry !== null) {

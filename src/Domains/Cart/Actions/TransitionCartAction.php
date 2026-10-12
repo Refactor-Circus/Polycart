@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Polycart\Domains\Cart\Actions;
 
-use BackedEnum;
+use Illuminate\Database\ConnectionInterface;
+use RefactorCircus\Polycart\Domains\Cart\Data\TransitionCartData;
 use RefactorCircus\Polycart\Domains\Cart\Events\CartTransitionedActionEvent;
 use RefactorCircus\Polycart\Domains\Cart\Events\CartTransitioningActionEvent;
 use RefactorCircus\Polycart\Domains\Cart\Exceptions\InvalidTransitionException;
@@ -15,38 +16,27 @@ use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
  */
 final class TransitionCartAction
 {
-    /**
-     * @return array<string, mixed>
-     */
-    public static function rules(): array
-    {
-        return [
-            'status' => ['required', 'string', 'max:191'],
-        ];
-    }
+    public function __construct(private readonly ConnectionInterface $db) {}
 
-    public function execute(CartModel $cart, BackedEnum|string $status): CartModel
+    public function execute(CartModel $cart, TransitionCartData $data): CartModel
     {
         $from = $cart->status;
 
-        CartTransitioningActionEvent::dispatch($cart, (string) CartModel::statusValue($status));
+        CartTransitioningActionEvent::dispatch($cart, $data);
 
-        $result = $this->perform($cart, $status);
+        $result = $this->perform($cart, $data->status);
 
         CartTransitionedActionEvent::dispatch($result, $from, (string) $result->status);
 
         return $result;
     }
 
-    private function perform(CartModel $cart, BackedEnum|string $status): CartModel
+    private function perform(CartModel $cart, string $value): CartModel
     {
         $type = $cart->cartType();
         $statuses = $type->statuses();
 
-        $to = $status instanceof BackedEnum
-            ? $status
-            : ($statuses === null ? null : $statuses::tryFrom($status));
-        $value = (string) CartModel::statusValue($status);
+        $to = $statuses === null ? null : $statuses::tryFrom($value);
 
         if ($statuses === null || ! $to instanceof $statuses) {
             throw InvalidTransitionException::unknownStatus($type->key(), $value);
@@ -63,7 +53,8 @@ final class TransitionCartAction
         }
 
         $cart->status = $value;
-        $cart->save();
+
+        $this->db->transaction(fn (): bool => $cart->save());
 
         return $cart;
     }

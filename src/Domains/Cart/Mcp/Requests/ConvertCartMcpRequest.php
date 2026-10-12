@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Polycart\Domains\Cart\Mcp\Requests;
 
-use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Polycart\Domains\Cart\Actions\ConvertCartAction;
+use RefactorCircus\Polycart\Domains\Cart\Data\ConvertCartData;
 use RefactorCircus\Polycart\Domains\Cart\Resources\CartResource;
 
 final class ConvertCartMcpRequest extends CartRequest
@@ -18,18 +18,13 @@ final class ConvertCartMcpRequest extends CartRequest
 
     protected function rules(): array
     {
-        return ConvertCartAction::rules() + [
-            'cart' => ['required', 'string', 'max:26'],
-        ];
+        return $this->cartRules() + ConvertCartData::rules();
     }
 
     protected function respond(array $validated): ResponseFactory
     {
-        /** @var string $to */
-        $to = $validated['to'];
+        $cart = app(ConvertCartAction::class)->execute($this->cart(), ConvertCartData::fromValidated($validated));
 
-        $cart = app(ConvertCartAction::class)->execute($this->cart(), $to, (bool) ($validated['copy'] ?? true));
-
-        return Response::structured((new CartResource($cart->load('lines')))->resolve());
+        return (new CartResource($cart->load('lines')))->toStructuredResponse();
     }
 }

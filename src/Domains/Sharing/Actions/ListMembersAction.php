@@ -13,14 +13,6 @@ use RefactorCircus\Polycart\Domains\Sharing\Models\CartMemberModel;
 final class ListMembersAction
 {
     /**
-     * @return array<string, mixed>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
-    /**
      * @return Collection<int, CartMemberModel>
      */
     public function execute(CartModel $cart): Collection

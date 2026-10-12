@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Name;
 use RefactorCircus\Keystone\Mcp\Tool;
+use RefactorCircus\Polycart\Domains\CartType\Http\Resources\CartTypeResource;
 use RefactorCircus\Polycart\Domains\CartType\Mcp\Requests\ListCartTypesMcpRequest;
 
 #[Name('list-cart-types')]
@@ -24,5 +25,10 @@ final class ListCartTypesTool extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [];
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return CartTypeResource::collectionSchema($schema);
     }
 }

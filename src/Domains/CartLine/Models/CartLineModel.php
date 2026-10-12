@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
 use RefactorCircus\Keystone\Models\Concerns\DispatchesModelEvents;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
+use RefactorCircus\Polycart\Support\Tables;
 
 /**
  * One line of a cart: a purchasable, or a custom line described by its meta.
@@ -37,8 +38,6 @@ final class CartLineModel extends Model
     use DispatchesModelEvents;
     use HasUlids;
 
-    protected $table = 'polycart_cart_lines';
-
     protected $fillable = [
         'purchasable_type',
         'purchasable_id',
@@ -54,6 +53,11 @@ final class CartLineModel extends Model
         'options' => '[]',
         'meta' => '[]',
     ];
+
+    public function getTable(): string
+    {
+        return Tables::name('cart_lines');
+    }
 
     /**
      * Whether this line points at no purchasable model.

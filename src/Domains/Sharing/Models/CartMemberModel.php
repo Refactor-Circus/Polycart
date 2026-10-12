@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
 use RefactorCircus\Keystone\Models\Concerns\DispatchesModelEvents;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
+use RefactorCircus\Polycart\Support\Tables;
 
 /**
  * Someone a cart is shared with, and the role the cart's type gives them.
@@ -33,13 +34,16 @@ final class CartMemberModel extends Model
     use DispatchesModelEvents;
     use HasUlids;
 
-    protected $table = 'polycart_cart_members';
-
     protected $fillable = [
         'member_type',
         'member_id',
         'role',
     ];
+
+    public function getTable(): string
+    {
+        return Tables::name('cart_members');
+    }
 
     /**
      * @return BelongsTo<CartModel, $this>

@@ -6,6 +6,8 @@ namespace RefactorCircus\Polycart\Domains\CartLine\Actions;
 
 use Illuminate\Database\ConnectionInterface;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
+use RefactorCircus\Polycart\Domains\CartLine\Data\LineChangeData;
+use RefactorCircus\Polycart\Domains\CartLine\Data\UpdateLinesData;
 use RefactorCircus\Polycart\Domains\CartLine\Events\LinesUpdatedActionEvent;
 use RefactorCircus\Polycart\Domains\CartLine\Events\LinesUpdatingActionEvent;
 use RefactorCircus\Polycart\Domains\CartLine\Exceptions\LineRejectedException;
@@ -28,56 +30,32 @@ final class UpdateLinesAction
         private readonly UpdateLineAction $update,
     ) {}
 
-    /**
-     * Each entry names a line by `id` and takes the fields of a single update.
-     *
-     * @return array<string, mixed>
-     */
-    public static function rules(): array
+    public function execute(CartModel $cart, UpdateLinesData $data): CartModel
     {
-        $rules = [
-            'lines' => ['required', 'array', 'list', 'min:1', 'max:'.self::MAX_LINES],
-            'lines.*.id' => ['required', 'string', 'max:26'],
-        ];
+        LinesUpdatingActionEvent::dispatch($cart, $data);
 
-        foreach (UpdateLineAction::rules() as $field => $fieldRules) {
-            $rules['lines.*.'.$field] = $fieldRules;
-        }
-
-        return $rules;
-    }
-
-    /**
-     * @param  array<int, array{id: CartLineModel|string, quantity: int, unit_price?: int|null}>  $changes
-     */
-    public function execute(CartModel $cart, array $changes): CartModel
-    {
-        LinesUpdatingActionEvent::dispatch($cart, $changes);
-
-        $result = $this->perform($cart, $changes);
+        $result = $this->perform($cart, $data);
 
         LinesUpdatedActionEvent::dispatch($result);
 
         return $result;
     }
 
-    /**
-     * @param  array<int, array{id: CartLineModel|string, quantity: int, unit_price?: int|null}>  $changes
-     */
-    private function perform(CartModel $cart, array $changes): CartModel
+    private function perform(CartModel $cart, UpdateLinesData $data): CartModel
     {
-        $this->db->transaction(function () use ($cart, $changes): void {
-            foreach (array_values($changes) as $index => $change) {
-                try {
-                    $this->update->execute(
-                        LineLookup::in($cart, $change['id']),
-                        $change['quantity'],
-                        $change['unit_price'] ?? null,
-                    );
-                } catch (LineRejectedException $e) {
-                    throw $e->atLine($index);
+        $this->db->transaction(function () use ($cart, $data): void {
+            $lines = LineLookup::lock($cart, array_map(fn (LineChangeData $change): CartLineModel|string => $change->id, $data->lines));
+
+            // The cart's lifetime is extended once, when the batch ends.
+            $cart->batchLines(function () use ($data, $lines): void {
+                foreach ($data->lines as $index => $change) {
+                    try {
+                        $this->update->execute($lines->in($change->id), $change->update());
+                    } catch (LineRejectedException $e) {
+                        throw $e->atLine($index);
+                    }
                 }
-            }
+            });
         });
 
         return $cart->unsetRelation('lines')->load('lines');

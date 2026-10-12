@@ -86,7 +86,7 @@ class User extends Authenticatable implements CartParticipant
 
 Return only the scopes the user belongs to *directly*. Polycart walks up from each one itself, so a user on the Sales and Ops teams reaches Sales, Ops and Acme.
 
-`cartScopes()` is called every time access is checked, which means joining or leaving a team takes effect immediately. If you cache it, clear the cache when team membership changes.
+`cartScopes()` is read once per request (or queued job) for each user, the first time their access is checked, so joining or leaving a team takes effect on the next request. Code that changes someone's teams and checks their access again in the same request calls `app(ScopeTree::class)->forget($user)` (`RefactorCircus\Polycart\Domains\Scope\Services\ScopeTree`; `flush()` forgets everyone). If you cache `cartScopes()` yourself, clear that cache when team membership changes.
 
 ### Registering aliases for the API and MCP
 
@@ -271,7 +271,7 @@ $cart->sharesScopeWith($otherCart);
 
 With `polycart.authorization` on, which is the default, every call acts as the authenticated user:
 
-- **Unauthenticated calls** are refused: `403` over HTTP, `Unauthorized.` over MCP.
+- **Unauthenticated calls** are refused: `401` over HTTP, `Unauthorized.` over MCP.
 - **Listing** returns only carts the user can access.
 - **Creating carts:** `POST /carts` and `POST /carts/active` always make the user the owner. Any `owner_type`, `owner_id` or `session_key` in the request is ignored. The user must belong to the given scope.
 - **Every change** goes through the Gate, using the ability listed in [Roles and permissions](roles-and-permissions.md#what-the-api-and-mcp-check).
@@ -323,6 +323,8 @@ Both extend `PolycartException`, so JSON callers get `422` with the message.
 | `polycart_cart_paths` | One row per level of each cart's chain: `cart_id`, `scope_type`, `scope_id`, `depth`. Written once, never changed. |
 | `polycart_cart_members` | `cart_id`, `member_type`, `member_id`, `role`. Unique per cart and member. |
 
+These are the default names; `polycart.tables` renames any of them (`carts`, `cart_paths`, `cart_members`, `cart_lines`) before migrating.
+
 Morph types are stored with `getMorphClass()`, so they follow your morph map.
 
 ## Unscoped carts
@@ -331,6 +333,6 @@ Carts without a scope still work: guest carts, or apps with no teams. They have 
 
 ## Performance notes
 
-- Each access check calls `cartScopes()` on the participant and walks up each scope's chain. With eager-loaded parents, as in `$this->teams()->with('organization')->get()`, that is one query.
+- The first access check in a request calls `cartScopes()` on the participant and walks up each scope's chain; later checks in the same request reuse the answer. With eager-loaded parents, as in `$this->teams()->with('organization')->get()`, that is one query.
 - `accessibleBy()` adds one condition per scope the user reaches. That is fine for a normal number of teams; if some users sit in hundreds, consider caching `cartScopes()`.
 - `inScope()` uses the indexed `polycart_cart_paths` table, so querying a whole organization does not depend on how deep its tree is.

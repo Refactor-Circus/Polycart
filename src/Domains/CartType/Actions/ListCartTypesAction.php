@@ -14,14 +14,6 @@ final class ListCartTypesAction
     public function __construct(private readonly CartTypeRegistry $types) {}
 
     /**
-     * @return array<string, mixed>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
-    /**
      * @return array<int, CartType>
      */
     public function execute(): array

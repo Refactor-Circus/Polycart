@@ -28,6 +28,8 @@ php artisan vendor:publish --tag="polycart-config"
 php artisan migrate
 ```
 
+To rename tables, set `polycart.tables` (`carts`, `cart_paths`, `cart_members`, `cart_lines`) in the published config before migrating; keys left out keep their default.
+
 ### 2. Define one type per kind of cart
 
 - Extend `RefactorCircus\Polycart\Domains\CartType\Support\CartType` and override only what differs. The overridable methods are:
@@ -66,6 +68,7 @@ php artisan migrate
 - A stage takes `handle(PendingLine $line, Closure $next)` and refuses with `$line->reject($message, $reason)`. Catch `LineRejectedException`, which has `reason` and `index`.
 - Remove: `$cart->remove($line)` or `$cart->clear()`. Change a quantity with `$cart->updateLine($line, $qty)`. Change or remove several lines at once, all or nothing, with `$cart->updateLines([...])` and `$cart->removeLines([...])`. The API and MCP only change lines in batches (`PATCH`/`DELETE .../lines`, `update-lines`, `remove-lines`).
 - Totals: `$cart->subtotal()` returns integer minor units.
+- Calling an Action directly, pass its Data object, never an array: `app(AddLinesAction::class)->execute($cart, new AddLinesData([new AddLineData(purchasable: $lock, quantity: 12)]))`, `app(UpdateCartAction::class)->execute($cart, new UpdateCartData(label: 'Lobby'))`. Each Data (`RefactorCircus\Polycart\Domains\{Domain}\Data\*`) holds its validation `rules()`; build one from untrusted input with `XData::from($input)`, which validates. The facade and `CartModel` helpers build the Data for you.
 - Pricing: implement `RefactorCircus\Polycart\Domains\CartLine\Contracts\Purchasable::unitPriceFor()` on the model, or bind `RefactorCircus\Polycart\Domains\CartLine\Contracts\PriceResolver`.
 
 ### 6. Move and convert
@@ -77,8 +80,8 @@ php artisan migrate
 
 - JSON API: set `polycart.routes.enabled` to `true` and put your auth middleware in `polycart.routes.middleware`.
 - List the models callers may name in `polycart.owners`, `polycart.scopes` and `polycart.purchasables`, keyed by alias.
-- With `polycart.authorization` on (the default), every call acts as the signed-in user and is checked against the policies in `polycart.policies`. By default the cart's owner may do anything and everyone else gets what their role grants. Swap a policy by pointing its model at your own class there.
-- MCP: enable `polycart.mcp.web` or `polycart.mcp.local`. The tools match the API one-to-one: `list-cart-types`, `list-carts`, `show-cart`, `create-cart`, `active-cart`, `update-cart`, `delete-cart`, `clear-cart`, `transition-cart`, `convert-cart`, `merge-carts`, `add-lines`, `update-lines`, `remove-lines`, `list-members`, `share-cart`, `unshare-cart`, `set-visibility`, plus `list-polycart-history-tool` for the audit history, Polycart's or one cart's (`GET {prefix}/history?subject_type=...&subject_id=...` over HTTP; both answer "not installed" until an audit log such as refactor-circus/keen is).
+- With `polycart.authorization` on (the default), every call acts as the signed-in user and is checked against the policies in `polycart.policies`. By default the cart's owner may do anything and everyone else gets what their role grants. Swap a policy by pointing its model at your own class there; every model (`CartModel`, `CartLineModel`, `CartMemberModel`, `CartPathModel`) has an entry.
+- MCP: enable `polycart.mcp.web` or `polycart.mcp.local`. The tools match the API one-to-one: `list-cart-types`, `list-carts`, `show-cart`, `create-cart`, `active-cart`, `update-cart`, `delete-cart`, `clear-cart`, `transition-cart`, `convert-cart`, `merge-carts`, `add-lines`, `update-lines`, `remove-lines`, `list-members`, `share-cart`, `unshare-cart`, `set-visibility`, plus `list-polycart-history-tool` for the audit history, Polycart's or one cart's (`GET {prefix}/history?subject_type=...&subject_id=...` over HTTP; the tool is offered, and the route answers, only while Polycart audits: refactor-circus/keen installed and `polycart.audit.enabled` on). Each tool answers structured content shaped like the JSON API: a cart, line or member under `data`, a list under `data` with its page under `meta` (`list-carts` pages by cursor), and declares an output schema for it.
 - Atrium: install `refactor-circus/atrium`. Polycart adds Carts and Cart types pages, two widgets, and search; with refactor-circus/keen, a cart's page shows its history (`<x-atrium::audit-trail source="polycart" :subject="$cart" />`) and the carts page Polycart's. Set `polycart.ui.enabled` to `false` to turn this off.
 - The dashboard checks the same policies as the JSON API for the signed-in user: navigation, widgets and search need `viewAny` on `CartModel`, and each control is shown only when its action is allowed (`update`, `delete`, `share`, `transition`/`convert` with the target, `update`/`delete` on a line or member). Lists hold only the carts the user can access. Use `@polycartCan('update', $cart)` in your own views to ask the same question. With `polycart.authorization` off, everything is allowed.
 - `polycart.atrium.show_all` (default `false`) makes dashboard operators: `true` for everyone who can open Atrium, or a Gate ability name such as `'manage-carts'`. Operators see every cart in the dashboard's lists, widgets and search and may take every action on it; `ScreenAccess::operator($user)` reports it. The JSON API and MCP are unaffected.
@@ -91,9 +94,10 @@ php artisan migrate
 - Every cart records a `source`: the refactor-circus/keystone `Surface` it was created (or last converted) through: `http`, `mcp`, `cortex`, `atrium`, `cli` or `code`.
 - Name your own surface with `Polycart::usingSource('import', fn () => ...)` (Keystone's `Surface::using()`), or for your routes with `app(Surface::class)->route('checkout.', 'web')`.
 - Polycart keeps no history of its own. Install `refactor-circus/keen` and every change made through the package is recorded in the suite-wide audit log with source `polycart`; line, sharing, merge and conversion entries are about the cart, a merge names `merged_from` and a conversion copy `converted_from`. Without Keen, carts keep no history.
-- Record your own events with `Keen::record('cart.exported')->on($cart)->with([...])->save()`. `$cart->recordActivity()` is deprecated and delegates to it.
+- Record your own events with `Keen::record('cart.exported')->source('polycart')->on($cart)->with([...])->save()`.
 - Query carts with `CartModel::query()->fromSource('mcp')`; read history from `GET {prefix}/history?subject_type=...&subject_id=...` or `list-polycart-history-tool`.
 - Write changes through the package's methods, not raw Eloquent updates, or they are not recorded.
+- Set `polycart.audit.enabled` to `false` to keep Polycart out of the audit log while Keen is installed; Polycart then offers no history.
 
 ### 9. Let Cortex agents manage carts (optional)
 
@@ -111,7 +115,7 @@ php artisan migrate
 
 - A B2B shop has four types: `cart` (45-day lifetime, converts to `saved`, `quote` and `order`), `saved`, `quote` (requires prices, Draft → Submitted → Accepted, converts to `order`), and `order`. Checkout calls `$cart->convertTo('order', copy: false)`, then `->transitionTo(OrderStatus::Processing)`.
 - A project carts tree has three types. `project` returns `[]` from `parents()`. `set` returns `['project']` from `parents()` and requires a parent. `opening` returns `['set']` from `parents()`, requires a parent, and returns false from `mergesLines()`.
-- Events: every model fires one event class per Eloquent hook (`CartCreatingEvent`, `CartLineSavedEvent`, ...), and every action fires a start and a finish event (`LineAddingActionEvent` → `LineAddedActionEvent`). Finish events fire after commit and only on success. Listen to `ActionFinishedEvent` for all of them. In tests, fake only the events you assert on, e.g. `Event::fake([LineAddedActionEvent::class])`. Assert refusals with `LineRejectedException`, `InvalidTransitionException`, `InvalidConversionException` and `InvalidParentException`.
+- Events: every model fires one event class per Eloquent hook (`CartCreatingEvent`, `CartLineSavedEvent`, ...), and every action fires a start and a finish event (`LineAddingActionEvent` → `LineAddedActionEvent`). Each action's writes run in one transaction, and finish events fire after commit and only on success. Listen to `ActionFinishedEvent` for all of them. In tests, fake only the events you assert on, e.g. `Event::fake([LineAddedActionEvent::class])`. Assert refusals with `LineRejectedException`, `InvalidTransitionException`, `InvalidConversionException` and `InvalidParentException`.
 
 ## Anti-patterns
 

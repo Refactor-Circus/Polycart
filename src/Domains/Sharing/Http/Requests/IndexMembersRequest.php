@@ -17,11 +17,6 @@ final class IndexMembersRequest extends CartRequest
         return $this->allows('viewAny', CartMemberModel::class, [$this->cart()]);
     }
 
-    public function rules(): array
-    {
-        return ListMembersAction::rules();
-    }
-
     public function persist(): JsonResponse
     {
         return CartMemberResource::collection(app(ListMembersAction::class)->execute($this->cart()))->response();

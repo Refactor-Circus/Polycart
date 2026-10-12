@@ -32,6 +32,13 @@ final class CartTypeRegistry
     /** @var array<string, CartType> */
     private array $resolved = [];
 
+    /**
+     * The merged catalogue, and the `polycart.types` value it was built from.
+     *
+     * @var array{config: mixed, types: array<string, class-string<CartType>>}|null
+     */
+    private ?array $catalogue = null;
+
     public function __construct(
         private readonly Container $container,
         private readonly Config $config,
@@ -58,6 +65,7 @@ final class CartTypeRegistry
         }
 
         $this->registered[$key] = $class;
+        $this->catalogue = null;
     }
 
     /**
@@ -81,10 +89,19 @@ final class CartTypeRegistry
      */
     public function all(): array
     {
-        // Merged at read time rather than memoized: a package may register
-        // after the first read, and precedence must not depend on which
-        // happened first.
-        return array_merge($this->registered, $this->configured());
+        // Merged on read, and kept only until a package registers a type or
+        // the config changes: precedence must not depend on which happened
+        // first.
+        $config = $this->config->get('polycart.types', []);
+
+        if ($this->catalogue !== null && $this->catalogue['config'] === $config) {
+            return $this->catalogue['types'];
+        }
+
+        $types = array_merge($this->registered, $this->configured($config));
+        $this->catalogue = ['config' => $config, 'types' => $types];
+
+        return $types;
     }
 
     public function has(string $key): bool
@@ -148,10 +165,10 @@ final class CartTypeRegistry
      *
      * @return array<string, class-string<CartType>>
      */
-    private function configured(): array
+    private function configured(mixed $configured): array
     {
         /** @var array<int|string, class-string<CartType>> $configured */
-        $configured = $this->config->get('polycart.types', []);
+        $configured = is_array($configured) ? $configured : [];
 
         $types = [];
 

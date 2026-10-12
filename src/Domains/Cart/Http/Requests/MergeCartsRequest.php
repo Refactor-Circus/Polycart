@@ -22,7 +22,9 @@ final class MergeCartsRequest extends CartRequest
 
     public function rules(): array
     {
-        return MergeCartsAction::rules();
+        return [
+            'into' => ['required', 'string', 'max:26'],
+        ];
     }
 
     public function persist(): JsonResponse

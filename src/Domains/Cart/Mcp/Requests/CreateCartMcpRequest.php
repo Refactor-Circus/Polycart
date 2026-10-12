@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Polycart\Domains\Cart\Mcp\Requests;
 
-use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Polycart\Domains\Cart\Actions\CreateCartAction;
+use RefactorCircus\Polycart\Domains\Cart\Data\CreateCartData;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
 use RefactorCircus\Polycart\Domains\Cart\Resources\CartResource;
 use RefactorCircus\Polycart\Mcp\Request;
@@ -28,21 +28,18 @@ final class CreateCartMcpRequest extends Request
 
     protected function rules(): array
     {
-        return CreateCartAction::rules();
+        return Morphs::ownerRules() + Morphs::scopeRules() + CreateCartData::rules();
     }
 
     protected function respond(array $validated): ResponseFactory
     {
-        /** @var string $type */
-        $type = $validated['type'];
-
         $morphs = app(Morphs::class);
 
         // Acting as a user, the user is always the owner.
         $owner = $this->actor() ?? $morphs->ownerFrom($validated);
 
-        $cart = app(CreateCartAction::class)->execute($type, $owner, $validated, $morphs->scopeFrom($validated));
+        $cart = app(CreateCartAction::class)->execute(CreateCartData::fromValidated($validated), $owner, $morphs->scopeFrom($validated));
 
-        return Response::structured((new CartResource($cart->load('lines')))->resolve());
+        return (new CartResource($cart->load('lines')))->toStructuredResponse();
     }
 }

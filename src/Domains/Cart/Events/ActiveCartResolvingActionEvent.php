@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use RefactorCircus\Keystone\Contracts\ActionStartingEvent;
+use RefactorCircus\Polycart\Domains\Cart\Data\ActiveCartData;
 
 /**
  * An owner's active cart is being looked up, or started.
@@ -18,7 +19,7 @@ final class ActiveCartResolvingActionEvent implements ActionStartingEvent
     use SerializesModels;
 
     public function __construct(
-        public string $type,
+        public ActiveCartData $data,
         public Model|string $owner,
         public ?Model $scope,
     ) {}

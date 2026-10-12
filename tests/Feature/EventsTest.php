@@ -11,8 +11,12 @@ use RefactorCircus\Polycart\Domains\Cart\Actions\DeleteCartAction;
 use RefactorCircus\Polycart\Domains\Cart\Actions\ListCartsAction;
 use RefactorCircus\Polycart\Domains\Cart\Actions\ShowCartAction;
 use RefactorCircus\Polycart\Domains\Cart\Actions\UpdateCartAction;
+use RefactorCircus\Polycart\Domains\Cart\Data\UpdateCartData;
+use RefactorCircus\Polycart\Domains\Cart\Events\CartClearedActionEvent;
+use RefactorCircus\Polycart\Domains\Cart\Events\CartCreatedActionEvent;
 use RefactorCircus\Polycart\Domains\Cart\Events\CartCreatingEvent;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
+use RefactorCircus\Polycart\Domains\CartLine\Events\CartLineDeletingEvent;
 use RefactorCircus\Polycart\Domains\CartLine\Events\LineAddingActionEvent;
 use RefactorCircus\Polycart\Domains\CartLine\Events\LinesAddedActionEvent;
 use RefactorCircus\Polycart\Domains\CartLine\Events\LinesAddingActionEvent;
@@ -121,7 +125,7 @@ it('starts and finishes every action once, in order', function (): void {
     Polycart::share($cart, $bob, 'viewer');
     Polycart::unshare($cart, $bob);
     $cart->setVisibility(Visibility::Scope);
-    app(UpdateCartAction::class)->execute($cart, ['label' => 'Lobby']);
+    app(UpdateCartAction::class)->execute($cart, new UpdateCartData(label: 'Lobby'));
     app(ShowCartAction::class)->execute($cart);
     app(ListCartsAction::class)->execute();
     app(ListCartTypesAction::class)->execute();
@@ -203,4 +207,39 @@ it('starts a failed action but never finishes it', function (): void {
 
     expect($starts)->toHaveCount(1)
         ->and($stops)->toHaveCount(0);
+});
+
+it('fires no finished event when the surrounding transaction rolls back', function (): void {
+    $finished = recordEvents(CartCreatedActionEvent::class);
+
+    try {
+        DB::transaction(function (): void {
+            Polycart::create('cart', 'session-1');
+
+            throw new RuntimeException('rolled back');
+        });
+    } catch (RuntimeException) {
+        //
+    }
+
+    expect($finished)->toHaveCount(0)
+        ->and(CartModel::query()->count())->toBe(0);
+});
+
+it('rolls back every write of an action that fails inside its transaction', function (): void {
+    $cart = Polycart::create('cart');
+    $cart->addLines([['purchasable' => product()], ['purchasable' => product(sku: 'LOCK-2')]]);
+    $finished = recordEvents(CartClearedActionEvent::class);
+    $deleting = 0;
+
+    Event::listen(CartLineDeletingEvent::class, function () use (&$deleting): void {
+        if (++$deleting === 2) {
+            throw new RuntimeException('refused');
+        }
+    });
+
+    expect(fn (): mixed => $cart->clear())->toThrow(RuntimeException::class, 'refused');
+
+    expect($finished)->toHaveCount(0)
+        ->and($cart->lines()->count())->toBe(2);
 });

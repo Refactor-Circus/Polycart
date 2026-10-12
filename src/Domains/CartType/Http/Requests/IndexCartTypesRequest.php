@@ -17,11 +17,6 @@ final class IndexCartTypesRequest extends Request
         return parent::authorize() && $this->allows('viewAny', CartModel::class);
     }
 
-    public function rules(): array
-    {
-        return ListCartTypesAction::rules();
-    }
-
     public function persist(): JsonResponse
     {
         return CartTypeResource::collection(app(ListCartTypesAction::class)->execute())->response();

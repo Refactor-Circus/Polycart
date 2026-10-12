@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Testing\Fluent\AssertableJson;
+use RefactorCircus\Polycart\Domains\Cart\Mcp\Tools\ActiveCartTool;
 use RefactorCircus\Polycart\Domains\Cart\Mcp\Tools\CreateCartTool;
 use RefactorCircus\Polycart\Domains\Cart\Mcp\Tools\ListCartsTool;
 use RefactorCircus\Polycart\Domains\Cart\Mcp\Tools\ShowCartTool;
@@ -14,7 +15,6 @@ use RefactorCircus\Polycart\Domains\Sharing\Mcp\Tools\SetVisibilityTool;
 use RefactorCircus\Polycart\Domains\Sharing\Mcp\Tools\ShareCartTool;
 use RefactorCircus\Polycart\Domains\Sharing\Mcp\Tools\UnshareCartTool;
 use RefactorCircus\Polycart\Facades\Polycart;
-use RefactorCircus\Polycart\Mcp\PolycartServer;
 use RefactorCircus\Polycart\Tests\Fixtures\Models\Person;
 use RefactorCircus\Polycart\Tests\Fixtures\Models\Team;
 
@@ -28,9 +28,27 @@ beforeEach(function (): void {
 });
 
 it('requires a signed-in user', function (): void {
-    $this->getJson('/polycart/carts')->assertForbidden();
+    $this->getJson('/polycart/carts')->assertUnauthorized();
 
-    PolycartServer::tool(ListCartsTool::class)->assertHasErrors(['Unauthorized.']);
+    mcpTool(ListCartsTool::class)->assertHasErrors(['Unauthorized.']);
+});
+
+it('resolves the signed-in user\'s active cart in the scope asked for', function (): void {
+    $ask = fn (): string => $this->actingAs($this->ann)
+        ->postJson('/polycart/carts/active', ['type' => 'cart', 'scope_type' => 'team', 'scope_id' => (string) $this->sales->id])
+        ->assertSuccessful()
+        ->assertJsonPath('data.owner_id', (string) $this->ann->id)
+        ->assertJsonPath('data.scope_id', (string) $this->sales->id)
+        ->json('data.id');
+
+    expect($ask())->toBe($ask());
+
+    mcpToolAs($this->ann, ActiveCartTool::class, ['type' => 'cart'])
+        ->assertOk()
+        ->assertStructuredContent(fn (AssertableJson $json): AssertableJson => $json
+            ->where('data.owner_id', (string) $this->ann->id)
+            ->where('data.scope_id', null)
+            ->etc());
 });
 
 it('starts carts owned by the signed-in user, whatever the body says', function (): void {
@@ -62,7 +80,7 @@ it('lists only the carts the user can access', function (): void {
         ->assertJsonCount(1, 'data')
         ->assertJsonPath('data.0.id', $mine->id);
 
-    PolycartServer::actingAs($this->ann)->tool(ListCartsTool::class)
+    mcpToolAs($this->ann, ListCartsTool::class)
         ->assertOk()
         ->assertStructuredContent(fn (AssertableJson $json): AssertableJson => $json->has('data', 1)->where('data.0.id', $mine->id)->etc());
 });
@@ -127,40 +145,38 @@ it('guards a move with the ability the type names for it', function (): void {
 it('enforces the same rules over MCP', function (): void {
     $cart = Polycart::create('cart', $this->ann, scope: $this->sales);
 
-    PolycartServer::actingAs($this->bob)->tool(ShowCartTool::class, ['cart' => $cart->id])->assertHasErrors(['Unauthorized.']);
-    PolycartServer::actingAs($this->bob)->tool(ListMembersTool::class, ['cart' => $cart->id])->assertHasErrors(['Unauthorized.']);
+    mcpToolAs($this->bob, ShowCartTool::class, ['cart' => $cart->id])->assertHasErrors(['Unauthorized.']);
+    mcpToolAs($this->bob, ListMembersTool::class, ['cart' => $cart->id])->assertHasErrors(['Unauthorized.']);
 
-    PolycartServer::actingAs($this->ann)
-        ->tool(ShareCartTool::class, ['cart' => $cart->id, 'member_type' => 'person', 'member_id' => (string) $this->bob->id, 'role' => 'viewer'])
+    mcpToolAs($this->ann, ShareCartTool::class, ['cart' => $cart->id, 'member_type' => 'person', 'member_id' => (string) $this->bob->id, 'role' => 'viewer'])
         ->assertOk()
-        ->assertStructuredContent(fn (AssertableJson $json): AssertableJson => $json->where('role', 'viewer')->etc());
+        ->assertStructuredContent(fn (AssertableJson $json): AssertableJson => $json->where('data.role', 'viewer')->etc());
 
-    PolycartServer::actingAs($this->bob)->tool(ShowCartTool::class, ['cart' => $cart->id])->assertOk();
-    PolycartServer::actingAs($this->bob)->tool(AddLinesTool::class, ['cart' => $cart->id, 'lines' => [['unit_price' => 100]]])->assertHasErrors(['Unauthorized.']);
+    mcpToolAs($this->bob, ShowCartTool::class, ['cart' => $cart->id])->assertOk();
+    mcpToolAs($this->bob, AddLinesTool::class, ['cart' => $cart->id, 'lines' => [['unit_price' => 100]]])->assertHasErrors(['Unauthorized.']);
 
-    PolycartServer::actingAs($this->ann)->tool(SetVisibilityTool::class, ['cart' => $cart->id, 'visibility' => 'scope'])
+    mcpToolAs($this->ann, SetVisibilityTool::class, ['cart' => $cart->id, 'visibility' => 'scope'])
         ->assertOk()
-        ->assertStructuredContent(fn (AssertableJson $json): AssertableJson => $json->where('visibility', 'scope')->etc());
+        ->assertStructuredContent(fn (AssertableJson $json): AssertableJson => $json->where('data.visibility', 'scope')->etc());
 
     $membership = $cart->members()->where('member_id', (string) $this->bob->id)->firstOrFail();
 
-    PolycartServer::actingAs($this->ann)->tool(UnshareCartTool::class, ['cart' => $cart->id, 'member' => $membership->id])->assertOk();
+    mcpToolAs($this->ann, UnshareCartTool::class, ['cart' => $cart->id, 'member' => $membership->id])->assertOk();
 
-    PolycartServer::actingAs($this->ann)->tool(ListMembersTool::class, ['cart' => $cart->id])
+    mcpToolAs($this->ann, ListMembersTool::class, ['cart' => $cart->id])
         ->assertOk()
         ->assertStructuredContent(fn (AssertableJson $json): AssertableJson => $json->has('data', 1)->etc());
 });
 
 it('starts carts over MCP as the signed-in user in their scope', function (): void {
-    PolycartServer::actingAs($this->ann)
-        ->tool(CreateCartTool::class, ['type' => 'order', 'scope_type' => 'team', 'scope_id' => (string) $this->sales->id])
+    mcpToolAs($this->ann, CreateCartTool::class, ['type' => 'order', 'scope_type' => 'team', 'scope_id' => (string) $this->sales->id])
         ->assertOk()
         ->assertStructuredContent(fn (AssertableJson $json): AssertableJson => $json
-            ->where('owner_id', (string) $this->ann->id)
-            ->where('scope_id', (string) $this->sales->id)
+            ->where('data.owner_id', (string) $this->ann->id)
+            ->where('data.scope_id', (string) $this->sales->id)
             ->etc());
 
     $order = CartModel::query()->ofType('order')->firstOrFail();
 
-    PolycartServer::actingAs($this->ann)->tool(TransitionCartTool::class, ['cart' => $order->id, 'status' => 'processing'])->assertOk();
+    mcpToolAs($this->ann, TransitionCartTool::class, ['cart' => $order->id, 'status' => 'processing'])->assertOk();
 });

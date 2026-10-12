@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Polycart\Domains\Cart\Actions;
 
+use Illuminate\Database\ConnectionInterface;
 use RefactorCircus\Polycart\Domains\Cart\Events\CartDeletedActionEvent;
 use RefactorCircus\Polycart\Domains\Cart\Events\CartDeletingActionEvent;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
@@ -13,13 +14,7 @@ use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
  */
 final class DeleteCartAction
 {
-    /**
-     * @return array<string, mixed>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
+    public function __construct(private readonly ConnectionInterface $db) {}
 
     public function execute(CartModel $cart): void
     {
@@ -32,6 +27,6 @@ final class DeleteCartAction
 
     private function perform(CartModel $cart): void
     {
-        $cart->delete();
+        $this->db->transaction(fn (): ?bool => $cart->delete());
     }
 }

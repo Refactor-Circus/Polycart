@@ -7,9 +7,9 @@ namespace RefactorCircus\Polycart\Domains\CartLine\Http\Requests;
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Polycart\Domains\Cart\Http\Requests\CartRequest;
 use RefactorCircus\Polycart\Domains\CartLine\Actions\AddLinesAction;
+use RefactorCircus\Polycart\Domains\CartLine\Data\AddLinesData;
 use RefactorCircus\Polycart\Domains\CartLine\Models\CartLineModel;
 use RefactorCircus\Polycart\Domains\CartLine\Resources\CartLineResource;
-use RefactorCircus\Polycart\Domains\CartLine\Support\LineInput;
 
 final class StoreLinesRequest extends CartRequest
 {
@@ -20,12 +20,12 @@ final class StoreLinesRequest extends CartRequest
 
     public function rules(): array
     {
-        return AddLinesAction::rules();
+        return AddLinesData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        $lines = app(AddLinesAction::class)->execute($this->cart(), app(LineInput::class)->lines($this->validated()));
+        $lines = app(AddLinesAction::class)->execute($this->cart(), AddLinesData::fromValidated($this->validated()));
 
         return CartLineResource::collection($lines)->response()->setStatusCode(201);
     }

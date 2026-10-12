@@ -8,6 +8,7 @@ use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use RefactorCircus\Keystone\Contracts\ActionStartingEvent;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
+use RefactorCircus\Polycart\Domains\CartLine\Data\UpdateLineData;
 use RefactorCircus\Polycart\Domains\CartLine\Models\CartLineModel;
 
 /**
@@ -21,7 +22,6 @@ final class LineUpdatingActionEvent implements ActionStartingEvent
     public function __construct(
         public CartModel $cart,
         public CartLineModel $line,
-        public int $quantity,
-        public ?int $unitPrice,
+        public UpdateLineData $data,
     ) {}
 }

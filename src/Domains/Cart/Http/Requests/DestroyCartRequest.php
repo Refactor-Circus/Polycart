@@ -14,11 +14,6 @@ final class DestroyCartRequest extends CartRequest
         return $this->allows('delete', $this->cart());
     }
 
-    public function rules(): array
-    {
-        return DeleteCartAction::rules();
-    }
-
     public function persist(): Response
     {
         app(DeleteCartAction::class)->execute($this->cart());

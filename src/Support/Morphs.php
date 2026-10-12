@@ -6,6 +6,7 @@ namespace RefactorCircus\Polycart\Support;
 
 use Illuminate\Contracts\Config\Repository as Config;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use RefactorCircus\Polycart\Exceptions\UnknownMorphException;
 
@@ -19,6 +20,53 @@ use RefactorCircus\Polycart\Exceptions\UnknownMorphException;
 final class Morphs
 {
     public function __construct(private readonly Config $config) {}
+
+    /**
+     * Rules for naming an owner: `owner_type` and `owner_id`, or a guest's
+     * `session_key`. One or the other is required when `$required`.
+     *
+     * @return array<string, array<int, string>>
+     */
+    public static function ownerRules(bool $required = false): array
+    {
+        return $required
+            ? [
+                'owner_type' => ['required_without:session_key', 'nullable', 'string', 'max:191', 'required_with:owner_id', 'prohibits:session_key'],
+                'owner_id' => ['required_with:owner_type', 'nullable', 'string', 'max:191'],
+                'session_key' => ['required_without:owner_type', 'nullable', 'string', 'max:191'],
+            ]
+            : [
+                'owner_type' => ['nullable', 'string', 'max:191', 'required_with:owner_id', 'prohibits:session_key'],
+                'owner_id' => ['nullable', 'string', 'max:191', 'required_with:owner_type'],
+                'session_key' => ['sometimes', 'nullable', 'string', 'max:191'],
+            ];
+    }
+
+    /**
+     * Rules for naming a scope: `scope_type` and `scope_id`, both or neither.
+     *
+     * @return array<string, array<int, string>>
+     */
+    public static function scopeRules(): array
+    {
+        return [
+            'scope_type' => ['nullable', 'string', 'max:191', 'required_with:scope_id'],
+            'scope_id' => ['nullable', 'string', 'max:191', 'required_with:scope_type'],
+        ];
+    }
+
+    /**
+     * Rules for naming a cart member: `member_type` and `member_id`.
+     *
+     * @return array<string, array<int, string>>
+     */
+    public static function memberRules(): array
+    {
+        return [
+            'member_type' => ['required', 'string', 'max:191'],
+            'member_id' => ['required', 'string', 'max:191'],
+        ];
+    }
 
     /**
      * The owner described by validated input: a model, a guest session key,
@@ -80,6 +128,55 @@ final class Morphs
         }
 
         return null;
+    }
+
+    /**
+     * The purchasables a batch of validated lines names, in the same order
+     * and with null for custom lines. Each kind of purchasable is read in
+     * one query; a missing one fails as a single lookup does.
+     *
+     * @param  array<int, mixed>  $lines
+     * @return array<int, Model|null>
+     */
+    public function purchasablesFrom(array $lines): array
+    {
+        /** @var array<class-string<Model>, array<int, string>> $wanted */
+        $wanted = [];
+        $named = [];
+
+        foreach ($lines as $index => $line) {
+            if (is_array($line) && is_string($line['purchasable_type'] ?? null) && is_scalar($line['purchasable_id'] ?? null)) {
+                $class = $this->lookup('purchasables', $line['purchasable_type'])
+                    ?? throw UnknownMorphException::notAllowed('purchasables', $line['purchasable_type']);
+
+                $named[$index] = [$class, (string) $line['purchasable_id']];
+                $wanted[$class][] = (string) $line['purchasable_id'];
+            }
+        }
+
+        $found = [];
+
+        foreach ($wanted as $class => $ids) {
+            foreach ($class::query()->whereKey(array_values(array_unique($ids)))->get() as $model) {
+                $found[$class][(string) $model->getKey()] = $model;
+            }
+        }
+
+        $purchasables = [];
+
+        foreach (array_keys($lines) as $index) {
+            if (! isset($named[$index])) {
+                $purchasables[$index] = null;
+
+                continue;
+            }
+
+            [$class, $id] = $named[$index];
+
+            $purchasables[$index] = $found[$class][$id] ?? throw (new ModelNotFoundException)->setModel($class, [$id]);
+        }
+
+        return $purchasables;
     }
 
     /**

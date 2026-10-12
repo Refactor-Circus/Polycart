@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace RefactorCircus\Polycart\Domains\CartType\Http\Resources;
 
 use BackedEnum;
+use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\JsonSchema\Types\Type;
+use RefactorCircus\Keystone\Http\Resources\JsonResource;
 use RefactorCircus\Polycart\Domains\CartType\Support\CartType;
 
 /**
@@ -16,6 +18,25 @@ use RefactorCircus\Polycart\Domains\CartType\Support\CartType;
  */
 final class CartTypeResource extends JsonResource
 {
+    /**
+     * @return array<string, Type>
+     */
+    public static function schema(JsonSchema $schema): array
+    {
+        return [
+            'key' => $schema->string()->required(),
+            'statuses' => $schema->array()->items($schema->string())->required(),
+            'initial_status' => $schema->string()->nullable()->required(),
+            'transitions' => $schema->object()->nullable()->description('Each status mapped to the statuses it may move to; null when any move is allowed.')->required(),
+            'converts_to' => $schema->array()->items($schema->string())->required(),
+            'parents' => $schema->array()->items($schema->string())->nullable()->description('The types it may nest under; null when any parent, or none, is allowed.')->required(),
+            'requires_parent' => $schema->boolean()->required(),
+            'requires_price' => $schema->boolean()->required(),
+            'merges_lines' => $schema->boolean()->required(),
+            'lifetime' => $schema->string()->nullable()->required(),
+        ];
+    }
+
     /**
      * @return array<string, mixed>
      */

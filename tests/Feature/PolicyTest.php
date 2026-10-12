@@ -11,10 +11,11 @@ use RefactorCircus\Polycart\Domains\CartLine\Mcp\Tools\AddLinesTool;
 use RefactorCircus\Polycart\Domains\CartLine\Mcp\Tools\RemoveLinesTool;
 use RefactorCircus\Polycart\Domains\CartLine\Models\CartLineModel;
 use RefactorCircus\Polycart\Domains\CartLine\Policies\CartLinePolicy;
+use RefactorCircus\Polycart\Domains\Scope\Models\CartPathModel;
+use RefactorCircus\Polycart\Domains\Scope\Policies\CartPathPolicy;
 use RefactorCircus\Polycart\Domains\Sharing\Models\CartMemberModel;
 use RefactorCircus\Polycart\Domains\Sharing\Policies\CartMemberPolicy;
 use RefactorCircus\Polycart\Facades\Polycart;
-use RefactorCircus\Polycart\Mcp\PolycartServer;
 use RefactorCircus\Polycart\PolycartServiceProvider;
 use RefactorCircus\Polycart\Tests\Fixtures\Models\Quote;
 use RefactorCircus\Polycart\Tests\Fixtures\Policies\KeepLinesPolicy;
@@ -49,7 +50,20 @@ it('registers the policies from the config', function (): void {
     expect(Gate::getPolicyFor(CartModel::class))->toBeInstanceOf(CartPolicy::class)
         ->and(Gate::getPolicyFor(Quote::class))->toBeInstanceOf(CartPolicy::class)
         ->and(Gate::getPolicyFor(CartLineModel::class))->toBeInstanceOf(CartLinePolicy::class)
-        ->and(Gate::getPolicyFor(CartMemberModel::class))->toBeInstanceOf(CartMemberPolicy::class);
+        ->and(Gate::getPolicyFor(CartMemberModel::class))->toBeInstanceOf(CartMemberPolicy::class)
+        ->and(Gate::getPolicyFor(CartPathModel::class))->toBeInstanceOf(CartPathPolicy::class);
+});
+
+it('lets whoever sees a cart see its tree paths, and no one change them', function (): void {
+    $cart = Polycart::create('cart', $this->ann, scope: $this->sales);
+    $path = $cart->paths()->firstOrFail();
+
+    expect($this->ann->can('viewAny', [CartPathModel::class, $cart]))->toBeTrue()
+        ->and($this->ann->can('view', $path))->toBeTrue()
+        ->and($this->ann->can('create', [CartPathModel::class, $cart]))->toBeFalse()
+        ->and($this->ann->can('update', $path))->toBeFalse()
+        ->and($this->ann->can('delete', $path))->toBeFalse()
+        ->and($this->bob->can('view', $path))->toBeFalse();
 });
 
 it('lets the owner do anything with their cart', function (): void {
@@ -94,9 +108,9 @@ it('uses a cart policy swapped in the config, for carts and their lines', functi
     $this->actingAs($this->ann)->patchJson("/polycart/carts/{$cart->id}", ['name' => 'Renamed'])->assertForbidden();
     $this->actingAs($this->ann)->postJson("/polycart/carts/{$cart->id}/lines", ['lines' => [['unit_price' => 100]]])->assertForbidden();
 
-    PolycartServer::actingAs($this->ann)->tool(ShowCartTool::class, ['cart' => $cart->id])->assertOk();
-    PolycartServer::actingAs($this->ann)->tool(UpdateCartTool::class, ['cart' => $cart->id, 'name' => 'Renamed'])->assertHasErrors(['Unauthorized.']);
-    PolycartServer::actingAs($this->ann)->tool(AddLinesTool::class, ['cart' => $cart->id, 'lines' => [['unit_price' => 100]]])->assertHasErrors(['Unauthorized.']);
+    mcpToolAs($this->ann, ShowCartTool::class, ['cart' => $cart->id])->assertOk();
+    mcpToolAs($this->ann, UpdateCartTool::class, ['cart' => $cart->id, 'name' => 'Renamed'])->assertHasErrors(['Unauthorized.']);
+    mcpToolAs($this->ann, AddLinesTool::class, ['cart' => $cart->id, 'lines' => [['unit_price' => 100]]])->assertHasErrors(['Unauthorized.']);
 });
 
 it('checks each named line against a line policy swapped in the config', function (): void {
@@ -113,8 +127,7 @@ it('checks each named line against a line policy swapped in the config', functio
         ->deleteJson("/polycart/carts/{$cart->id}/lines", ['lines' => [$line->id]])
         ->assertForbidden();
 
-    PolycartServer::actingAs($this->ann)
-        ->tool(RemoveLinesTool::class, ['cart' => $cart->id, 'lines' => [$line->id]])
+    mcpToolAs($this->ann, RemoveLinesTool::class, ['cart' => $cart->id, 'lines' => [$line->id]])
         ->assertHasErrors(['Unauthorized.']);
 
     expect($cart->lines()->count())->toBe(1);

@@ -5,12 +5,13 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use RefactorCircus\Polycart\Support\Tables;
 
 return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('polycart_carts', function (Blueprint $table) {
+        Schema::create(Tables::name('carts'), function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->string('type');
             $table->string('status')->nullable();
@@ -23,7 +24,7 @@ return new class extends Migration
             $table->string('boundary_type')->nullable();
             $table->string('boundary_id')->nullable();
             $table->string('visibility')->default('private');
-            $table->foreignUlid('parent_id')->nullable()->constrained('polycart_carts')->cascadeOnDelete();
+            $table->foreignUlid('parent_id')->nullable()->constrained(Tables::name('carts'))->cascadeOnDelete();
             $table->ulid('root_id')->nullable()->index();
             $table->string('label')->nullable();
             $table->json('meta')->nullable();
@@ -39,9 +40,9 @@ return new class extends Migration
 
         // Every level of the tree a cart was created in, from its own scope
         // (depth 0) up to the boundary. Written once and never changed.
-        Schema::create('polycart_cart_paths', function (Blueprint $table) {
+        Schema::create(Tables::name('cart_paths'), function (Blueprint $table) {
             $table->ulid('id')->primary();
-            $table->foreignUlid('cart_id')->constrained('polycart_carts')->cascadeOnDelete();
+            $table->foreignUlid('cart_id')->constrained(Tables::name('carts'))->cascadeOnDelete();
             $table->string('scope_type');
             $table->string('scope_id');
             $table->unsignedSmallInteger('depth');
@@ -50,9 +51,9 @@ return new class extends Migration
             $table->index(['scope_type', 'scope_id']);
         });
 
-        Schema::create('polycart_cart_members', function (Blueprint $table) {
+        Schema::create(Tables::name('cart_members'), function (Blueprint $table) {
             $table->ulid('id')->primary();
-            $table->foreignUlid('cart_id')->constrained('polycart_carts')->cascadeOnDelete();
+            $table->foreignUlid('cart_id')->constrained(Tables::name('carts'))->cascadeOnDelete();
             $table->string('member_type');
             $table->string('member_id');
             $table->string('role');
@@ -62,9 +63,9 @@ return new class extends Migration
             $table->index(['member_type', 'member_id']);
         });
 
-        Schema::create('polycart_cart_lines', function (Blueprint $table) {
+        Schema::create(Tables::name('cart_lines'), function (Blueprint $table) {
             $table->ulid('id')->primary();
-            $table->foreignUlid('cart_id')->constrained('polycart_carts')->cascadeOnDelete();
+            $table->foreignUlid('cart_id')->constrained(Tables::name('carts'))->cascadeOnDelete();
             $table->string('purchasable_type')->nullable();
             $table->string('purchasable_id')->nullable();
             $table->string('fingerprint', 64);
@@ -82,9 +83,9 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('polycart_cart_members');
-        Schema::dropIfExists('polycart_cart_paths');
-        Schema::dropIfExists('polycart_cart_lines');
-        Schema::dropIfExists('polycart_carts');
+        Schema::dropIfExists(Tables::name('cart_members'));
+        Schema::dropIfExists(Tables::name('cart_paths'));
+        Schema::dropIfExists(Tables::name('cart_lines'));
+        Schema::dropIfExists(Tables::name('carts'));
     }
 };

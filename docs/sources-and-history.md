@@ -106,10 +106,8 @@ Record your application's own events with Keen's facade. They are stored with so
 ```php
 use RefactorCircus\Keen\Facades\Keen;
 
-Keen::record('cart.exported')->on($cart)->with(['reference' => $salesOrder->number])->save();
+Keen::record('cart.exported')->source('polycart')->on($cart)->with(['reference' => $salesOrder->number])->save();
 ```
-
-`$cart->recordActivity('exported', [...])` still works, but is deprecated: it calls `Keen::record('cart.exported')->on($cart)->with([...])->save()` (an action without a dot gets the `cart.` prefix) when Keen is installed, and does nothing otherwise.
 
 ## Reading history
 

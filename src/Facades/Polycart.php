@@ -14,7 +14,7 @@ use RefactorCircus\Polycart\Domains\Sharing\Models\CartMemberModel;
 /**
  * @method static CartTypeRegistry types()
  * @method static CartType type(string $key)
- * @method static CartModel create(string $type, Model|string|null $owner = null, array<string, mixed> $attributes = [], Model|null $scope = null)
+ * @method static CartModel create(string $type, Model|string|null $owner = null, array{label?: string|null, meta?: array<string, mixed>|null, parent_id?: string|null} $attributes = [], Model|null $scope = null)
  * @method static CartModel active(string $type, Model|string $owner, Model|null $scope = null)
  * @method static CartMemberModel share(CartModel $cart, Model $member, string $role)
  * @method static void unshare(CartModel $cart, Model $member)

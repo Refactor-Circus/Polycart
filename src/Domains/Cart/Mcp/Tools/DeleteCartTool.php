@@ -27,4 +27,11 @@ final class DeleteCartTool extends Tool
             'cart' => $schema->string()->description('The cart id.')->required(),
         ];
     }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return [
+            'deleted' => $schema->string()->description('The id of the deleted cart.')->required(),
+        ];
+    }
 }

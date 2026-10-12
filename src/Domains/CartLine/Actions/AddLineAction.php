@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pipeline\Pipeline;
 use RefactorCircus\Keystone\Support\Surface;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
+use RefactorCircus\Polycart\Domains\CartLine\Data\AddLineData;
 use RefactorCircus\Polycart\Domains\CartLine\Events\LineAddedActionEvent;
 use RefactorCircus\Polycart\Domains\CartLine\Events\LineAddingActionEvent;
 use RefactorCircus\Polycart\Domains\CartLine\Exceptions\LineRejectedException;
@@ -31,83 +32,52 @@ final class AddLineAction
         private readonly Surface $surface,
     ) {}
 
-    /**
-     * @return array<string, mixed>
-     */
-    public static function rules(): array
+    public function execute(CartModel $cart, AddLineData $data): CartLineModel
     {
-        return [
-            'purchasable_type' => ['nullable', 'string', 'max:191', 'required_with:purchasable_id'],
-            'purchasable_id' => ['nullable', 'string', 'max:191', 'required_with:purchasable_type'],
-            'quantity' => ['sometimes', 'integer', 'min:1'],
-            'options' => ['sometimes', 'array'],
-            'meta' => ['sometimes', 'array'],
-            'unit_price' => ['sometimes', 'nullable', 'integer', 'min:0'],
-        ];
-    }
+        LineAddingActionEvent::dispatch($cart, $data);
 
-    /**
-     * @param  array<string, mixed>  $options
-     * @param  array<string, mixed>  $meta
-     */
-    public function execute(
-        CartModel $cart,
-        ?Model $purchasable,
-        int $quantity = 1,
-        array $options = [],
-        array $meta = [],
-        ?int $unitPrice = null,
-    ): CartLineModel {
-        LineAddingActionEvent::dispatch($cart, $purchasable, $quantity, $options, $meta, $unitPrice);
-
-        $result = $this->perform($cart, $purchasable, $quantity, $options, $meta, $unitPrice);
+        $result = $this->perform($cart, $data);
 
         LineAddedActionEvent::dispatch($cart, $result, ! $result->wasRecentlyCreated);
 
         return $result;
     }
 
-    /**
-     * @param  array<string, mixed>  $options
-     * @param  array<string, mixed>  $meta
-     */
-    private function perform(
-        CartModel $cart,
-        ?Model $purchasable,
-        int $quantity = 1,
-        array $options = [],
-        array $meta = [],
-        ?int $unitPrice = null,
-    ): CartLineModel {
+    private function perform(CartModel $cart, AddLineData $data): CartLineModel
+    {
         $type = $cart->cartType();
         $user = $this->auth->guard()->user();
 
         $pending = new PendingLine(
             cart: $cart,
             type: $type,
-            purchasable: $purchasable,
-            quantity: $quantity,
-            options: $options,
-            meta: $meta,
-            unitPrice: $unitPrice,
+            purchasable: $data->purchasable,
+            quantity: $data->quantity,
+            options: $data->options,
+            meta: $data->meta,
+            unitPrice: $data->unitPrice,
             actor: $user instanceof Model ? $user : null,
             source: $this->surface->current(),
         );
 
-        $pending = $this->db->transaction(fn (): PendingLine => $this->pipeline
-            ->send($pending)
-            ->through($type->addLineStages())
-            ->thenReturn());
+        $line = $this->db->transaction(function () use ($pending, $type, $cart): CartLineModel {
+            /** @var PendingLine $pending */
+            $pending = $this->pipeline
+                ->send($pending)
+                ->through($type->addLineStages())
+                ->thenReturn();
 
-        // A stage that returns without passing the line on, and without
-        // rejecting it, would otherwise look like a silent success.
-        if (! $pending->line instanceof CartLineModel || ! $pending->line->exists) {
-            throw LineRejectedException::stopped();
-        }
+            // A stage that returns without passing the line on, and without
+            // rejecting it, would otherwise look like a silent success.
+            if (! $pending->line instanceof CartLineModel || ! $pending->line->exists) {
+                throw LineRejectedException::stopped();
+            }
 
-        $line = $pending->line;
+            $cart->extendLifetime();
 
-        $cart->extendLifetime();
+            return $pending->line;
+        });
+
         $cart->unsetRelation('lines');
 
         return $line;

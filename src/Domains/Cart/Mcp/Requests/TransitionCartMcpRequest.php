@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Polycart\Domains\Cart\Mcp\Requests;
 
-use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Polycart\Domains\Cart\Actions\TransitionCartAction;
+use RefactorCircus\Polycart\Domains\Cart\Data\TransitionCartData;
 use RefactorCircus\Polycart\Domains\Cart\Resources\CartResource;
 
 final class TransitionCartMcpRequest extends CartRequest
@@ -18,18 +18,13 @@ final class TransitionCartMcpRequest extends CartRequest
 
     protected function rules(): array
     {
-        return TransitionCartAction::rules() + [
-            'cart' => ['required', 'string', 'max:26'],
-        ];
+        return $this->cartRules() + TransitionCartData::rules();
     }
 
     protected function respond(array $validated): ResponseFactory
     {
-        /** @var string $status */
-        $status = $validated['status'];
+        $cart = app(TransitionCartAction::class)->execute($this->cart(), TransitionCartData::fromValidated($validated));
 
-        $cart = app(TransitionCartAction::class)->execute($this->cart(), $status);
-
-        return Response::structured((new CartResource($cart))->resolve());
+        return (new CartResource($cart))->toStructuredResponse();
     }
 }

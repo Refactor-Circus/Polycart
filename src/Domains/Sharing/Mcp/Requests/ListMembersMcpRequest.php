@@ -17,17 +17,8 @@ final class ListMembersMcpRequest extends CartRequest
         return $this->allows('viewAny', CartMemberModel::class, [$this->cart()]);
     }
 
-    protected function rules(): array
-    {
-        return ListMembersAction::rules() + [
-            'cart' => ['required', 'string', 'max:26'],
-        ];
-    }
-
     protected function respond(array $validated): ResponseFactory
     {
-        return $this->structuredCollection(
-            CartMemberResource::collection(app(ListMembersAction::class)->execute($this->cart()))->resolve(),
-        );
+        return CartMemberResource::collection(app(ListMembersAction::class)->execute($this->cart()))->toStructuredResponse();
     }
 }

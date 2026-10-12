@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Polycart\Domains\Sharing\Mcp\Requests;
 
-use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Polycart\Domains\Cart\Mcp\Requests\CartRequest;
 use RefactorCircus\Polycart\Domains\Cart\Resources\CartResource;
 use RefactorCircus\Polycart\Domains\Sharing\Actions\SetVisibilityAction;
+use RefactorCircus\Polycart\Domains\Sharing\Data\SetVisibilityData;
 
 final class SetVisibilityMcpRequest extends CartRequest
 {
@@ -19,18 +19,13 @@ final class SetVisibilityMcpRequest extends CartRequest
 
     protected function rules(): array
     {
-        return SetVisibilityAction::rules() + [
-            'cart' => ['required', 'string', 'max:26'],
-        ];
+        return $this->cartRules() + SetVisibilityData::rules();
     }
 
     protected function respond(array $validated): ResponseFactory
     {
-        /** @var string $visibility */
-        $visibility = $validated['visibility'];
+        $cart = app(SetVisibilityAction::class)->execute($this->cart(), SetVisibilityData::fromValidated($validated));
 
-        $cart = app(SetVisibilityAction::class)->execute($this->cart(), $visibility);
-
-        return Response::structured((new CartResource($cart))->resolve());
+        return (new CartResource($cart))->toStructuredResponse();
     }
 }

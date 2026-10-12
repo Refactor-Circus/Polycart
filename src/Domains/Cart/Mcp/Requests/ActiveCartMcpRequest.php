@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace RefactorCircus\Polycart\Domains\Cart\Mcp\Requests;
 
 use Illuminate\Database\Eloquent\Model;
-use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Polycart\Domains\Cart\Actions\ActiveCartAction;
+use RefactorCircus\Polycart\Domains\Cart\Data\ActiveCartData;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
 use RefactorCircus\Polycart\Domains\Cart\Resources\CartResource;
 use RefactorCircus\Polycart\Mcp\Request;
@@ -23,26 +23,22 @@ final class ActiveCartMcpRequest extends Request
 
     protected function rules(): array
     {
-        $rules = ActiveCartAction::rules();
-
         // Acting as a user, the owner comes from the session, not the call.
-        if ($this->actor() !== null) {
-            unset($rules['owner_type'], $rules['owner_id'], $rules['session_key']);
-        }
+        $owner = $this->actor() === null ? Morphs::ownerRules(required: true) : [];
 
-        return $rules;
+        return $owner + Morphs::scopeRules() + ActiveCartData::rules();
     }
 
     protected function respond(array $validated): ResponseFactory
     {
-        /** @var string $type */
-        $type = $validated['type'];
+        $morphs = app(Morphs::class);
 
+        // The owner rules require one when no user is acting.
         /** @var Model|string $owner */
-        $owner = app(Morphs::class)->ownerFrom($validated);
+        $owner = $this->actor() ?? $morphs->ownerFrom($validated);
 
-        $cart = app(ActiveCartAction::class)->execute($type, $owner);
+        $cart = app(ActiveCartAction::class)->execute(ActiveCartData::fromValidated($validated), $owner, $morphs->scopeFrom($validated));
 
-        return Response::structured((new CartResource($cart->load('lines')))->resolve());
+        return (new CartResource($cart->load('lines')))->toStructuredResponse();
     }
 }

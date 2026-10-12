@@ -28,4 +28,11 @@ final class UnshareCartTool extends Tool
             'member' => $schema->string()->description('The membership id, from list-members.')->required(),
         ];
     }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return [
+            'removed' => $schema->string()->description('The id of the membership removed.')->required(),
+        ];
+    }
 }

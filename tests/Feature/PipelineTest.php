@@ -16,7 +16,6 @@ use RefactorCircus\Polycart\Domains\CartLine\Support\Stages\ValidateLine;
 use RefactorCircus\Polycart\Domains\CartLine\Support\Stages\WriteLine;
 use RefactorCircus\Polycart\Domains\CartType\Services\CartTypeRegistry;
 use RefactorCircus\Polycart\Facades\Polycart;
-use RefactorCircus\Polycart\Mcp\PolycartServer;
 use RefactorCircus\Polycart\Tests\Fixtures\Models\Person;
 use RefactorCircus\Polycart\Tests\Fixtures\Stages\ApplyBulkDiscount;
 use RefactorCircus\Polycart\Tests\Fixtures\Stages\CheckStock;
@@ -128,7 +127,7 @@ it('runs the pipeline for lines added over the API and MCP', function (): void {
         ->assertUnprocessable()
         ->assertExactJson(['message' => 'Line 0: Only 1 left.', 'reason' => 'out_of_stock', 'line' => 0]);
 
-    PolycartServer::tool(AddLinesTool::class, ['cart' => $cart->id, 'lines' => [$line]])
+    mcpTool(AddLinesTool::class, ['cart' => $cart->id, 'lines' => [$line]])
         ->assertHasErrors(['Line 0: Only 1 left. (reason: out_of_stock)']);
 
     $this->postJson("/polycart/carts/{$cart->id}/lines", ['lines' => [['purchasable_type' => 'product', 'purchasable_id' => (string) $product->id]]])

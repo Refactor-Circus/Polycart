@@ -13,6 +13,10 @@ use RefactorCircus\Polycart\Domains\Scope\Contracts\CartScope;
  *
  * Scopes are identified by [morph class, key] pairs so the same level
  * compares equal however it was loaded.
+ *
+ * Bound once per request (a scoped binding), it reads what each actor
+ * reaches once and answers every later check from memory. Code that changes
+ * someone's scopes and checks again in the same request calls `forget()`.
  */
 final class ScopeTree
 {
@@ -20,6 +24,13 @@ final class ScopeTree
      * How far up a chain is followed, so a cycle cannot loop forever.
      */
     private const int MAX_DEPTH = 32;
+
+    /**
+     * What each actor reaches, keyed by "type|id", read once per request.
+     *
+     * @var array<string, array<string, array{0: string, 1: string}>>
+     */
+    private array $reach = [];
 
     /**
      * A scope and every level above it, nearest first.
@@ -66,6 +77,35 @@ final class ScopeTree
      * @return array<string, array{0: string, 1: string}> Keyed by "type|id".
      */
     public function reach(Model $actor): array
+    {
+        if ($actor->getKey() === null) {
+            return $this->walk($actor);
+        }
+
+        return $this->reach[self::key($actor)] ??= $this->walk($actor);
+    }
+
+    /**
+     * Forget what an actor reaches, so the next check reads their scopes
+     * again: call it after changing someone's teams within one request.
+     */
+    public function forget(Model $actor): void
+    {
+        unset($this->reach[self::key($actor)]);
+    }
+
+    /**
+     * Forget what every actor reaches.
+     */
+    public function flush(): void
+    {
+        $this->reach = [];
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: string}>
+     */
+    private function walk(Model $actor): array
     {
         $direct = match (true) {
             $actor instanceof CartParticipant => $actor->cartScopes(),

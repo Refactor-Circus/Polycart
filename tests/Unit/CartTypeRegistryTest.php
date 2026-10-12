@@ -62,3 +62,19 @@ it('names the model a type hydrates as', function (): void {
         ->and($registry->model('order'))->toBe(CartModel::class)
         ->and($registry->model('nope'))->toBeNull();
 });
+
+it('keeps its catalogue until a type is registered or the config changes', function (): void {
+    $registry = app(CartTypeRegistry::class);
+
+    expect($registry->has('wishlist'))->toBeFalse();
+
+    $registry->register('wishlist', SavedCart::class);
+    expect($registry->has('wishlist'))->toBeTrue();
+
+    config()->set('polycart.types', [...config('polycart.types'), 'later' => OrderCart::class]);
+    expect($registry->class('later'))->toBe(OrderCart::class);
+
+    config()->set('polycart.types', ['quote' => QuoteCart::class]);
+    expect($registry->has('later'))->toBeFalse()
+        ->and($registry->has('wishlist'))->toBeTrue();
+});

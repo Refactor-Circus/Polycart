@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Polycart\Domains\Sharing\Actions;
 
+use Illuminate\Database\ConnectionInterface;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
 use RefactorCircus\Polycart\Domains\Sharing\Events\CartUnsharedActionEvent;
 use RefactorCircus\Polycart\Domains\Sharing\Events\CartUnsharingActionEvent;
@@ -16,13 +17,7 @@ use RefactorCircus\Polycart\Domains\Sharing\Models\CartMemberModel;
  */
 final class UnshareCartAction
 {
-    /**
-     * @return array<string, mixed>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
+    public function __construct(private readonly ConnectionInterface $db) {}
 
     public function execute(CartModel $cart, CartMemberModel $member): void
     {
@@ -38,9 +33,11 @@ final class UnshareCartAction
 
     private function perform(CartModel $cart, CartMemberModel $member): void
     {
-        self::guardTopRole($cart, $member);
+        $this->db->transaction(function () use ($cart, $member): void {
+            self::guardTopRole($cart, $member);
 
-        $member->delete();
+            $member->delete();
+        });
         $cart->unsetRelation('members');
     }
 

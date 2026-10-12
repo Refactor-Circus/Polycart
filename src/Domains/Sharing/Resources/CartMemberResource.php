@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Polycart\Domains\Sharing\Resources;
 
+use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\JsonSchema\Types\Type;
+use RefactorCircus\Keystone\Http\Resources\JsonResource;
 use RefactorCircus\Polycart\Domains\Sharing\Models\CartMemberModel;
 
 /**
@@ -13,6 +15,21 @@ use RefactorCircus\Polycart\Domains\Sharing\Models\CartMemberModel;
  */
 final class CartMemberResource extends JsonResource
 {
+    /**
+     * @return array<string, Type>
+     */
+    public static function schema(JsonSchema $schema): array
+    {
+        return [
+            'id' => $schema->string()->required(),
+            'cart_id' => $schema->string()->required(),
+            'member_type' => $schema->string()->required(),
+            'member_id' => $schema->string()->required(),
+            'role' => $schema->string()->required(),
+            'created_at' => $schema->string()->nullable()->required(),
+        ];
+    }
+
     /**
      * @return array<string, mixed>
      */

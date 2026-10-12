@@ -11,6 +11,7 @@ use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Name;
 use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Polycart\Domains\Cart\Mcp\Requests\CreateCartMcpRequest;
+use RefactorCircus\Polycart\Domains\Cart\Resources\CartResource;
 
 #[Name('create-cart')]
 #[Description('Start a new cart of a type. Give an owner (owner_type and owner_id) or a guest session_key, or neither. Nest it with parent_id where the type allows.')]
@@ -34,5 +35,10 @@ final class CreateCartTool extends Tool
             'scope_type' => $schema->string()->description('Scope alias from polycart.scopes, such as a team. Requires scope_id. The cart is locked to it.'),
             'scope_id' => $schema->string()->description('Key of the scope model.'),
         ];
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return CartResource::structuredSchema($schema);
     }
 }

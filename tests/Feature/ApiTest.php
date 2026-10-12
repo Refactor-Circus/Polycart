@@ -92,7 +92,8 @@ it('shows, updates and deletes a cart', function (): void {
 
     expect(CartModel::query()->find($cart->id))->toBeNull();
 
-    $this->getJson("/polycart/carts/{$cart->id}")->assertNotFound();
+    // A plain message, as the MCP tools give, rather than one naming the model class.
+    $this->getJson("/polycart/carts/{$cart->id}")->assertNotFound()->assertExactJson(['message' => 'Not found.']);
 });
 
 it('manages lines', function (): void {

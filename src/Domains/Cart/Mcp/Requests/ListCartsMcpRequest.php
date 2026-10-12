@@ -6,6 +6,7 @@ namespace RefactorCircus\Polycart\Domains\Cart\Mcp\Requests;
 
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Polycart\Domains\Cart\Actions\ListCartsAction;
+use RefactorCircus\Polycart\Domains\Cart\Data\ListCartsData;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
 use RefactorCircus\Polycart\Domains\Cart\Resources\CartResource;
 use RefactorCircus\Polycart\Mcp\Request;
@@ -19,16 +20,13 @@ final class ListCartsMcpRequest extends Request
 
     protected function rules(): array
     {
-        return ListCartsAction::rules();
+        return ListCartsData::rules();
     }
 
     protected function respond(array $validated): ResponseFactory
     {
-        $carts = app(ListCartsAction::class)->execute($validated, $this->actor());
+        $carts = app(ListCartsAction::class)->execute(ListCartsData::fromValidated($validated), $this->actor());
 
-        return $this->structuredCollection(
-            CartResource::collection($carts)->resolve(),
-            ['next_cursor' => $carts->nextCursor()?->encode()],
-        );
+        return CartResource::collection($carts)->toStructuredResponse();
     }
 }

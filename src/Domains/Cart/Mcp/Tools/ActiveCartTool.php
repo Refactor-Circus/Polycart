@@ -11,6 +11,7 @@ use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Name;
 use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Polycart\Domains\Cart\Mcp\Requests\ActiveCartMcpRequest;
+use RefactorCircus\Polycart\Domains\Cart\Resources\CartResource;
 
 #[Name('active-cart')]
 #[Description('Get an owner\'s current cart of a type, starting one if they have none. A cart is current while it has not expired and is still in its type\'s first status.')]
@@ -31,5 +32,10 @@ final class ActiveCartTool extends Tool
             'scope_type' => $schema->string()->description('Scope alias from polycart.scopes. Each scope has its own active cart.'),
             'scope_id' => $schema->string()->description('Key of the scope model.'),
         ];
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return CartResource::structuredSchema($schema);
     }
 }

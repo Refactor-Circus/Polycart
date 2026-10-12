@@ -10,7 +10,6 @@ use RefactorCircus\Polycart\Domains\Cart\Mcp\Tools\CreateCartTool;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
 use RefactorCircus\Polycart\Domains\Sharing\Enums\Visibility;
 use RefactorCircus\Polycart\Facades\Polycart;
-use RefactorCircus\Polycart\Mcp\PolycartServer;
 
 it('records the surface of carts made directly', function (): void {
     // The test runner is a console process, so Keystone's Surface says `cli`.
@@ -43,7 +42,7 @@ it('records carts made through the JSON API', function (): void {
 });
 
 it('records carts made through MCP', function (): void {
-    PolycartServer::tool(CreateCartTool::class, ['type' => 'cart'])->assertOk();
+    mcpTool(CreateCartTool::class, ['type' => 'cart'])->assertOk();
 
     expect(CartModel::query()->sole()->source)->toBe('mcp')
         ->and(Polycart::create('cart')->source)->toBe('cli');
@@ -84,7 +83,7 @@ it('records the surface of the conversion on the converted cart', function (bool
     $cartId = $this->postJson('/polycart/carts', ['type' => 'cart'])->assertCreated()->json('data.id');
     CartModel::query()->findOrFail($cartId)->add(product());
 
-    PolycartServer::tool(ConvertCartTool::class, ['cart' => $cartId, 'to' => 'order', 'copy' => $copy])->assertOk();
+    mcpTool(ConvertCartTool::class, ['cart' => $cartId, 'to' => 'order', 'copy' => $copy])->assertOk();
 
     $order = CartModel::query()->ofType('order')->sole();
 

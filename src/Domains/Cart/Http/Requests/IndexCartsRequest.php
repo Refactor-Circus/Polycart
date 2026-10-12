@@ -7,6 +7,7 @@ namespace RefactorCircus\Polycart\Domains\Cart\Http\Requests;
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Keystone\Http\Requests\Request;
 use RefactorCircus\Polycart\Domains\Cart\Actions\ListCartsAction;
+use RefactorCircus\Polycart\Domains\Cart\Data\ListCartsData;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
 use RefactorCircus\Polycart\Domains\Cart\Resources\CartResource;
 
@@ -19,11 +20,13 @@ final class IndexCartsRequest extends Request
 
     public function rules(): array
     {
-        return ListCartsAction::rules();
+        return ListCartsData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        return CartResource::collection(app(ListCartsAction::class)->execute($this->validated(), $this->actor()))->response();
+        $carts = app(ListCartsAction::class)->execute(ListCartsData::fromValidated($this->validated()), $this->actor());
+
+        return CartResource::collection($carts)->response();
     }
 }
