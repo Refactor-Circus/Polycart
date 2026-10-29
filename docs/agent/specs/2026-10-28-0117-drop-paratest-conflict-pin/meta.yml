@@ -1,0 +1,10 @@
+id: 2026-10-28-0117-drop-paratest-conflict-pin
+title: Drop the paratest conflict pin
+status: merged
+created: 2026-10-28
+review_passes: 1
+ticket: { provider: github, key: "#4", url: https://github.com/Refactor-Circus/Polycart/issues/4 }
+standards: {}
+pr: { number: 5, url: https://github.com/Refactor-Circus/Polycart/pull/5 }
+runs:
+  - { workflow: ring-master-factory, run_id: wf_6c78c24e-e59, result: approved, round: 1, date: 2026-10-28 }
