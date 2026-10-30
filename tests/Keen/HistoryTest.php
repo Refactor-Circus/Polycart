@@ -78,26 +78,24 @@ it('records a copying conversion on the copy, naming the original', function ():
         ->and($entry->context)->toMatchArray(['converted_from' => $cart->id, 'from' => 'cart', 'to' => 'quote']);
 });
 
-it('lists a cart\'s history on its dashboard screen', function (): void {
-    $guest = Polycart::create('cart', 'guest-1');
-    $guest->add(product(sku: 'A'));
-    $mine = Polycart::create('cart');
-    $mine->add(product(sku: 'B'));
-    Polycart::merge($guest, $mine);
+it('keeps the history route, tool and listeners with Keen installed, beside screens that leave history to Keen', function (): void {
+    $cart = Polycart::create('cart');
+    $cart->add(product());
 
-    $this->get(route('atrium.polycart.carts.show', $mine))
+    // The screens answer as before; history on them is Keen's own section.
+    $this->get(route('atrium.polycart.carts.index'))->assertOk();
+    $this->get(route('atrium.polycart.carts.show', $cart))->assertOk();
+
+    expect(polycartEntries('line.added'))->toHaveCount(1);
+
+    $query = ['subject_type' => $cart->getMorphClass(), 'subject_id' => $cart->id];
+
+    $this->getJson('/polycart/history?'.http_build_query($query))
         ->assertOk()
-        ->assertSee('data-testid="audit-trail"', false)
-        ->assertSee('line.added')
-        ->assertSee('carts.merged');
-});
+        ->assertJsonFragment(['action' => 'line.added']);
 
-it('lists Polycart\'s history on the carts screen', function (): void {
-    Polycart::create('cart')->add(product());
-
-    $this->get(route('atrium.polycart.carts.index'))
+    mcpTool(ListPolycartHistoryTool::class, $query)
         ->assertOk()
-        ->assertSee('data-testid="audit-trail"', false)
         ->assertSee('line.added');
 });
 

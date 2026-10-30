@@ -44,6 +44,9 @@
         "refactor-circus/keen": "Records cart changes in the suite-wide audit log; without it carts keep no history (dev-main).",
         "refactor-circus/pennantplus": "Switch Polycart in Atrium on and off with the PolycartSupportFeature Pennant feature (dev-main)."
     },
+    "conflict": {
+        "refactor-circus/atrium": "<0.1.0"
+    },
     "autoload": {
         "psr-4": {
             "RefactorCircus\\Polycart\\": "src/"
@@ -89,11 +92,15 @@
         "test:unit": [
             "vendor/bin/pest --parallel"
         ],
+        "test:without-atrium": [
+            "vendor/bin/pest --configuration=phpunit.without-atrium.xml --test-directory=tests/WithoutAtrium"
+        ],
         "test": [
             "@analyse",
             "@lint:check",
             "@test:types",
-            "@test:unit"
+            "@test:unit",
+            "@test:without-atrium"
         ],
         "clear": [
             "@php vendor/bin/testbench package:purge-skeleton --ansi"

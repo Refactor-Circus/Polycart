@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    The package without refactor-circus/atrium: run by `composer test:without-atrium`
+    (vendor/bin/pest with this configuration and test directory tests/WithoutAtrium).
+    The bootstrap takes Atrium's namespace out of the autoloader.
+-->
+<phpunit
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+    backupGlobals="false"
+    bootstrap="tests/WithoutAtrium/bootstrap.php"
+    colors="true"
+    processIsolation="false"
+    stopOnFailure="false"
+    executionOrder="random"
+    failOnWarning="true"
+    failOnRisky="true"
+    failOnEmptyTestSuite="true"
+    beStrictAboutOutputDuringTests="true"
+    cacheDirectory=".phpunit.cache/without-atrium"
+    backupStaticProperties="false"
+>
+    <testsuites>
+        <testsuite name="WithoutAtrium">
+            <directory>tests/WithoutAtrium</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory suffix=".php">src</directory>
+        </include>
+    </source>
+</phpunit>

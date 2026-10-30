@@ -6,6 +6,7 @@
 /.editorconfig      export-ignore
 /tests              export-ignore
 /phpunit.xml.dist   export-ignore
+/phpunit.without-atrium.xml export-ignore
 /phpstan.neon.dist  export-ignore
 /pint.json          export-ignore
 /testbench.yaml     export-ignore
