@@ -5,6 +5,8 @@ declare(strict_types=1);
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use RefactorCircus\Atrium\Domains\Screens\Data\SectionDefinition;
+use RefactorCircus\Atrium\Facades\Atrium;
 use RefactorCircus\Polycart\Atrium\PolycartPlugin;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
 use RefactorCircus\Polycart\Domains\CartLine\Data\AddLinesData;
@@ -87,6 +89,36 @@ it('shows a cart in the dashboard with the same queries however many lines and m
     };
 
     expect($show(2))->toBe($show(8));
+});
+
+it('lists carts with a permission() row section in the same queries however many rows it has', function (): void {
+    app()->detectEnvironment(fn (): string => 'local');
+    config()->set('polycart.authorization', true);
+
+    // Asked once per row, about each cart its viewer was shared into.
+    Atrium::screens()->section('polycart.carts', 'row.actions', SectionDefinition::make('acme.row')->view('polycart-tests::marker')->permission('view'));
+
+    $index = function (int $count): int {
+        $sales = team(organization(), 'Sales '.$count);
+        $ann = person($sales);
+
+        foreach (range(1, $count) as $i) {
+            Polycart::share(Polycart::create('cart', person($sales), scope: $sales), $ann, 'viewer');
+        }
+
+        $this->actingAs($ann);
+        $html = '';
+
+        $queries = polycartQueries(function () use (&$html): void {
+            $html = (string) $this->get(route('atrium.polycart.carts.index'))->assertOk()->getContent();
+        });
+
+        expect(substr_count($html, 'data-testid="section-acme.row"'))->toBe($count);
+
+        return count($queries);
+    };
+
+    expect($index(2))->toBe($index(8));
 });
 
 it('adds a batch of lines reading the next position and extending the lifetime once', function (): void {

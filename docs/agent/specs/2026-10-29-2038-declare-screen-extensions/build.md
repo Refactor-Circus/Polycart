@@ -54,3 +54,23 @@ The build agent ended without a result. There was no `index.lock` and no merge o
   - "A `permission('view')` row section on `polycart.types` renders for a member and not a stranger." D-042 asks about a `CartTypeRow` as `CartModel::class`. `CartPolicy::view()` needs a cart instance, so a class-level `view` cannot tell a member from a stranger.
   - "A `permission('acme.extra')` section renders only once the Gate defines it." `CartPolicy::__call()` answers every ability on `CartModel`, and Laravel's Gate prefers a callable policy method over a `Gate::define()`. So the definition is never consulted: the owner always sees the section and anyone else never does.
 - 1.6: run `vendor/bin/pest` (the gate).
+
+## Group 1
+
+Screen declarations (criteria 1-7, 10), finishing the salvaged work. The salvaged commit `0ce5cdc` was not on the job branch, so it was brought in (cherry-picked, uncommitted) and committed here together with the two finished cases.
+
+### Files
+
+- Everything listed under "Group 1 (salvaged)" above, unchanged, including `tests/Fixtures/views/marker.blade.php` (**outside the group's file list**: Atrium requires a view on every extension).
+- `tests/Feature/Ui/ScreenExtensionsTest.php`: the two `todo()` cases are replaced.
+  - `shows a permission('viewAny') row section on polycart.types to a signed-in member and not to a guest` (D-044): signed in as a member, the types page renders the section once per row with each row as its record. A guest's view is resolved directly, because the page refuses a guest before resolving, and gets no row section, while the member's gets one.
+  - `decides a type-defined or unknown permission on a cart through CartPolicy` (D-045): a dataset over a type-defined ability (`checkout` on an `order` cart, from the `OrderCart` fixture's roles) and an unknown one (`acme.extra` on a `cart` cart), each without a Gate definition and with a `Gate::define()` that grants everyone. The cart's owner sees the `before` section on the cart page. The stranger's view, resolved directly, has none, even when the Gate definition grants everyone.
+
+### Tests
+
+The suite was not run here, as instructed; the gate runs it. `vendor/bin/pint --test` passes on `ScreenExtensionsTest.php`.
+
+### Deviations
+
+- `tests/Fixtures/views/marker.blade.php` is outside the group's file list (see above).
+- `AGENTS.md` carries an uncommitted Ring Master sync line that is not part of this group. It was left as it was.

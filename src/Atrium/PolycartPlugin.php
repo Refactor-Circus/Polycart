@@ -70,9 +70,6 @@ class PolycartPlugin extends Plugin
                 ->group('Polycart')
                 ->sort(20)
                 ->authorize(fn (Request $request): bool => self::mayList($request->user())),
-
-            // The package's own audit log, while an audit log is installed.
-            $this->historyNavItem('polycart')->group('Polycart')->sort(90),
         ];
     }
 

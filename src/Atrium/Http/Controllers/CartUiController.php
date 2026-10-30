@@ -7,13 +7,14 @@ namespace RefactorCircus\Polycart\Atrium\Http\Controllers;
 use BackedEnum;
 use Closure;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use RefactorCircus\Keystone\Audit\History;
-use RefactorCircus\Keystone\Packages\PackageRegistry;
+use RefactorCircus\Atrium\Domains\Screens\Services\ScreenExtensions;
 use RefactorCircus\Polycart\Atrium\Http\Controllers\Concerns\AuthorizesScreens;
 use RefactorCircus\Polycart\Atrium\ScreenAccess;
+use RefactorCircus\Polycart\Atrium\Support\Screens;
 use RefactorCircus\Polycart\Domains\Cart\Actions\ClearCartAction;
 use RefactorCircus\Polycart\Domains\Cart\Actions\ConvertCartAction;
 use RefactorCircus\Polycart\Domains\Cart\Actions\DeleteCartAction;
@@ -46,6 +47,10 @@ use RefactorCircus\Polycart\Support\Morphs;
  * API and MCP tools call, after the same policy check their requests make,
  * so a refusal here is the refusal they would give. The views hide each
  * control with that check (`@polycartCan`), so they cannot drift apart.
+ *
+ * The carts list (`polycart.carts`) and a cart (`polycart.cart`) declare
+ * themselves on Atrium's screen extensions registry, resolved only once the
+ * page's own check has passed.
  */
 final class CartUiController
 {
@@ -58,20 +63,25 @@ final class CartUiController
         $this->authorizeScreen('viewAny', CartModel::class);
 
         $filters = ListCartsData::from($request->all());
+        $carts = app(ListCartsAction::class)->execute($filters, ScreenAccess::actor());
+
+        // A row section's permission() asks about each cart's members: the
+        // first row that asks loads them for every row, and nothing loads
+        // while no row asks.
+        (new Collection($carts->items()))->withRelationshipAutoloading();
 
         /** @var view-string $view */
         $view = 'polycart::ui.carts.index';
 
         return view($view, [
-            'carts' => app(ListCartsAction::class)->execute($filters, ScreenAccess::actor()),
+            'resolved' => app(ScreenExtensions::class)->resolve(Screens::list('polycart.carts'), $request),
+            'carts' => $carts,
             'filters' => $filters->toArray(),
             'types' => array_keys(app(CartTypeRegistry::class)->all()),
-            // The whole package's history, asked as its history endpoint asks it.
-            'showHistory' => app(History::class)->allows(app(PackageRegistry::class)->get('polycart'), $request->user(), []),
         ]);
     }
 
-    public function show(CartModel $cart): View
+    public function show(Request $request, CartModel $cart): View
     {
         $this->authorizeScreen('view', $cart);
 
@@ -82,6 +92,7 @@ final class CartUiController
         $view = 'polycart::ui.carts.show';
 
         return view($view, [
+            'resolved' => app(ScreenExtensions::class)->resolve(Screens::detail('polycart.cart', $cart), $request),
             'cart' => $cart->load(['parent', 'children', 'paths']),
             'type' => $type,
             // Only the moves the type allows from here, and the user may make.
