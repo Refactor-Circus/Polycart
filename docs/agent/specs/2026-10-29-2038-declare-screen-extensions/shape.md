@@ -2,6 +2,8 @@
 
 ## Scope
 
+> Superseded by the two addenda below and by `spec.md`: no audit subjects, no `history` slot, `historyNavItem` is removed (not out of scope), and screens use `Screen::standard`, not `Screen::make`.
+
 Move Polycart's screens onto Atrium's screen extensions registry (Atrium `2026-10-29-2037-screen-extensions-registry`).
 
 - **Inline audit trails.** Remove `<x-atrium::audit-trail>` from `ui/carts/index` (package-wide) and `ui/carts/show` (subject: the cart). Declare the `polycart.carts` and `polycart.cart` screens with their audited subjects, so Keen's History section attaches.
