@@ -61,3 +61,15 @@ Earlier D-ids are recorded in shape.md.
 - Rationale: The user accepted the recommendation.
 - Date: 2026-10-29
 - Raised by: spec review; the user accepted all recommendations (2026-10-29)
+
+## D-044: permission() on a polycart.types row
+- Choice: The criterion 2 example uses `permission('viewAny')`, and the test asserts it renders for a signed-in member and not for a guest.
+- Rationale: Accepted the recommendation. `CartPolicy::view()` needs a cart instance, so a class-level 'view' check can't tell users apart.
+- Date: 2026-10-30
+- Raised by: build (group 1)
+
+## D-045: The 'acme.extra' Gate case
+- Choice: Reword the case to match policy behaviour. A type-defined or unknown ability goes through `CartPolicy`: the cart's owner sees the section and a stranger doesn't, with or without a Gate definition. Test that.
+- Rationale: Accepted the recommendation. `CartPolicy::__call()` answers before `Gate::define()`.
+- Date: 2026-10-30
+- Raised by: build (group 1)

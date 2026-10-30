@@ -49,3 +49,5 @@ Polycart's three Atrium pages declare themselves on Atrium's screen extensions r
 ## Changelog
 
 - Applied D-034 (WithoutAtrium suite plus CI lane, `conflict`), D-035 (noted: no integration config), D-036/D-039 (`permission()` through `ScreenAccess`, documented), D-037/D-040 (`CartTypeRow`), D-038 (`require` unchanged, dev constraints `dev-main`), D-041 (`conflict` entry), D-042 (`CartTypeRow` checks as `CartModel::class`), D-043 (unknown `?tab=` not tested).
+- D-044: the types-row example is `permission('viewAny')` (member sees it, guest doesn't).
+- D-045: unknown and type-defined abilities follow CartPolicy (owner sees, stranger doesn't), regardless of Gate::define.

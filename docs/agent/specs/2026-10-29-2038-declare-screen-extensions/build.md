@@ -1,0 +1,56 @@
+# Build
+
+## Group 2
+
+Atrium optional (criteria 8, 9). Commit `7ff40f7` on `ring-master/2026-10-29-2038-declare-screen-extensions--g2`.
+
+### Files
+
+- `composer.json`: `conflict` gains `"refactor-circus/atrium": "<1.0"`; new `test:without-atrium` script (`vendor/bin/pest --configuration=phpunit.without-atrium.xml --test-directory=tests/WithoutAtrium`), called by `composer test` right after `@test:unit`. `require`, `suggest` and the `dev-main` dev constraints are unchanged. The same changes were mirrored by hand into the git-ignored `composer.local.json` (not regenerated).
+- `tests/ArchTest.php`: `arch('code outside src/Atrium uses no Atrium class')`.
+- `tests/Feature/ComposerTest.php`: reads `composer.json` (Keystone the only `refactor-circus/*` in `require`; Atrium suggested, not required; `conflict` on Atrium with a `<` bound; Atrium and Keen dev constraints `dev-main`; `test:without-atrium` follows `@test:unit` in `test`), `phpunit.without-atrium.xml` (bootstrap and suite directory) and the CI workflow (the `without-atrium` job's remove and run steps).
+- `phpunit.without-atrium.xml`: one `WithoutAtrium` suite over `tests/WithoutAtrium`, bootstrap `tests/WithoutAtrium/bootstrap.php`, its own cache directory.
+- `tests/WithoutAtrium/bootstrap.php`: requires the Composer autoloader, then sets the `RefactorCircus\Atrium\` PSR-4 prefix to no directories on every registered loader.
+- `tests/WithoutAtrium/TestCase.php`: Testbench with `McpServiceProvider` and `PolycartServiceProvider` only; does not extend the main `TestCase` (group 1 adds Atrium's `ResetsScreenExtensions` trait to it).
+- `tests/WithoutAtrium/Pest.php`: binds that test case. The script's `--test-directory=tests/WithoutAtrium` makes Pest load this file instead of `tests/Pest.php`, which names test cases that load Atrium.
+- `tests/WithoutAtrium/WithoutAtriumTest.php`: no Atrium class can load; the provider boots and the package registers; no `atrium.` route while `polycart.carts.index` exists; the JSON API lists a cart; `tools/list` on `PolycartServer` returns the tools; no `RefactorCircus\Atrium\` class, interface or trait is declared after any of it.
+- `.github/workflows/tests.yml`: `without-atrium` job: `composer remove --dev refactor-circus/atrium refactor-circus/cortex --no-update` (Cortex requires Atrium), `composer update --no-scripts` (the workbench providers in `testbench.yaml` name Atrium), then `composer test:without-atrium`.
+- `.gitattributes` (outside the group's file list): `phpunit.without-atrium.xml` is `export-ignore`, like `phpunit.xml.dist`.
+
+### Tests
+
+Not run here, as instructed; the gate runs them. `vendor/bin/pint --test` passes on the new and changed test files, and `composer validate` passes. The WithoutAtrium suite does not run under `vendor/bin/pest` (it is not in `phpunit.xml.dist`); it runs through `composer test:without-atrium`, which `composer test` calls.
+
+### Deviations
+
+- The `conflict` bound `<1.0` is a placeholder. Atrium has no tags yet, and the spec's Risks section sets the real bound from the first Atrium release carrying the registry when the group merges. `<1.0` matches no current install (`dev-main` is not compared with `<`).
+
+## Group 1 (salvaged)
+
+Screen declarations (criteria 1-7, 10). Commit `0ce5cdc` on `ring-master/2026-10-29-2038-declare-screen-extensions--g1`.
+
+### What was found
+
+The build agent ended without a result. There was no `index.lock` and no merge or rebase in progress. The worktree held uncommitted work for every group 1 path: the `HistoryNavigationTest.php` deletion was staged and everything else was unstaged or untracked. The work was complete apart from two criterion 2 cases, which the agent left as Pest `todo()`s citing decisions it never wrote down (see below). `AGENTS.md` was also modified (a Ring Master sync line). It is not a group 1 file, so it was left uncommitted.
+
+### Committed
+
+- `src/Atrium/Support/Screens.php`: final, static `detail()`/`list()` on `Screen::standard()` with the criterion 2 access closure (a `CartTypeRow` or no record is asked about as `CartModel::class`, D-042).
+- `src/Atrium/Data/CartTypeRow.php`: final unsaved `Model`, string key `key`, no timestamps, `public private(set) CartType $type`, `for()`.
+- `src/Atrium/Http/Controllers/CartUiController.php`: `index` and `show` resolve `polycart.carts` / `polycart.cart` after `authorizeScreen()` and pass `resolved`. `showHistory` and its Keystone imports are gone. Listed carts get relationship autoloading, so a `permission()` row section stays within the query budget.
+- `src/Atrium/Http/Controllers/CartTypeUiController.php`: resolves `polycart.types` and passes `resolved`, `types` and `rows` (`CartTypeRow::for(...)` per type).
+- `src/Atrium/PolycartPlugin.php`: `historyNavItem()` removed from `navigation()`.
+- `resources/views/ui/{carts/index,carts/show,types/index}.blade.php`: `header.actions` in the page header's actions slot, then `screen-tabs`. A registered tab, when open, replaces the body with `screen-tab-panel`. Otherwise the order is `before`, body, `aside` (cart page side column, `data-testid="screen-aside"`), `after`. `row.actions` goes in a trailing cell (`row-actions`) under an empty heading (`row-actions-heading`), shown only when some row has a section. Both `x-atrium::audit-trail` tags are removed.
+- `tests/TestCase.php`: `use ResetsScreenExtensions`, and registers the `polycart-tests` view namespace for the fixture.
+- `tests/Fixtures/views/marker.blade.php` (**outside the group's file list**): the fixture view the screen tests register as tabs and sections. It prints its marker, screen key and record key. It was needed because Atrium requires a view or component on every extension.
+- `tests/Unit/CartTypeRowTest.php`, `tests/Feature/Ui/ScreenExtensionsTest.php`, `tests/Feature/Ui/ScreenIsolationTest.php`, and a `permission()` row-section query-budget test in `tests/Feature/PerformanceTest.php`.
+- Deleted `tests/Feature/HistoryNavigationTest.php`. In `tests/Keen/HistoryTest.php`, deleted `lists a cart's history on its dashboard screen` and `lists Polycart's history on the carts screen`, and replaced them with `keeps the history route, tool and listeners with Keen installed, beside screens that leave history to Keen`. List these in the PR (criterion 6).
+
+`vendor/bin/pint --test` passes on every changed PHP file. The suite was not run here, as instructed; the gate runs it.
+
+### Left
+
+- 1.1, two criterion 2 cases, are `todo()` in `ScreenExtensionsTest.php`. Both need a decision, because neither can pass as worded:
+  - "A `permission('view')` row section on `polycart.types` renders for a member and not a stranger." D-042 asks about a `CartTypeRow` as `CartModel::class`. `CartPolicy::view()` needs a cart instance, so a class-level `view` cannot tell a member from a stranger.
+  - "A `permission('acme.extra')` section renders only once the Gate defines it." `CartPolicy::__call()` answers every ability on `CartModel`, and Laravel's Gate prefers a callable policy method over a `Gate::define()`. So the definition is never consulted: the owner always sees the section and anyone else never does.
+- 1.6: run `vendor/bin/pest` (the gate).
