@@ -1,6 +1,8 @@
 # Release Notes
 
-## [Unreleased](https://github.com/Refactor-Circus/Polycart/commits/main)
+## [Unreleased](https://github.com/Refactor-Circus/Polycart/compare/v0.1.0...main)
+
+## [v0.1.0](https://github.com/Refactor-Circus/Polycart/commits/v0.1.0) - 2026-10-30
 
 ### Breaking
 
@@ -154,8 +156,3 @@
 - `PolycartPlugin::features()` uses Atrium's `featuresFromConfig()`, and `ScreenAccess::allows()` delegates to Atrium's `ScreenAccess` for abilities without arguments.
 - With `polycart.authorization` on, the Atrium dashboard now applies the same per-user policies as the JSON API and MCP tools. Navigation, widgets and search need `viewAny` on `Cart`; each page action checks the ability its API request checks and answers 403 otherwise; controls the user may not use are hidden; and lists, widgets and search hold only the carts the user can access. Previously the dashboard relied on Atrium's gate alone.
 - `RefactorCircus\Polycart\Atrium\Format::variant()` is replaced by `Badges::forCart()`.
-
-
-## [v0.1.0](https://github.com/Refactor-Circus/Polycart/compare/...v0.1.0) - 202x-xx-xx
-
-Initial pre-release.
