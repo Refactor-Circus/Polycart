@@ -123,7 +123,15 @@ Carts can still be listed by source: `CartModel::query()->fromSource('mcp')`, `G
 
 ## In the Atrium dashboard
 
-The cart page shows the cart's source and its history, newest first, through Atrium's `<x-atrium::audit-trail source="polycart" :subject="$cart" />`. The carts page shows Polycart's recent history across every cart to those who may read it. Both render nothing until Keen is installed.
+The cart page shows the cart's source. Its history comes from Keen, not Polycart: Polycart's pages draw no history and its navigation has no History item. Instead, Polycart declares its pages as screens on Atrium's screen extensions registry, and Keen's History section and nav items attach to them. So the cart history UI needs an Atrium with the registry and a Keen with its History section; until both are installed, the dashboard shows no history (the JSON API and MCP tool above still answer while Polycart audits).
+
+| Screen key | Page | Kind | Record | Slots |
+| --- | --- | --- | --- | --- |
+| `polycart.carts` | Carts | list | none; each row is its `CartModel` | `header.actions`, `before`, `after`, `row.actions` |
+| `polycart.cart` | A cart | detail | the `CartModel` | `header.actions`, `before`, `aside`, `after` |
+| `polycart.types` | Cart types | list | none; each row is a `CartTypeRow` | `header.actions`, `before`, `after`, `row.actions` |
+
+Any package can add tabs and sections to these screens the same way Keen does. A `permission()` on an extension is decided by Polycart's `RefactorCircus\Polycart\Atrium\ScreenAccess`, the rule the pages' own controls follow, so it is shown to dashboard operators and to everyone while `polycart.authorization` is off. An extension that needs a check of its own uses `authorize()`.
 
 ## Upgrading from the activity log
 

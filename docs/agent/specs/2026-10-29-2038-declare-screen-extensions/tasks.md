@@ -29,6 +29,6 @@ depends on: 1, 2
 files: README.md, CHANGELOG.md, CLAUDE.md, resources/boost/skills/polycart-development/SKILL.md, docs/sources-and-history.md, tests/Feature/DocsTest.php
 criteria: 11, 12
 
-- [ ] 3.1 Write the docs test for the three keys and the absence of `audit-trail` and `historyNavItem`.
-- [ ] 3.2 Update the README, changelog, CLAUDE.md, Boost skill and `docs/sources-and-history.md`.
-- [ ] 3.3 Run composer test and vendor/bin/pest; all green.
+- [x] 3.1 Write the docs test for the three keys and the absence of `audit-trail` and `historyNavItem`.
+- [x] 3.2 Update the README, changelog, CLAUDE.md, Boost skill and `docs/sources-and-history.md`.
+- [x] 3.3 Run composer test and vendor/bin/pest; all green.

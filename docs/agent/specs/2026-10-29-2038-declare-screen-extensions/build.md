@@ -74,3 +74,26 @@ The suite was not run here, as instructed; the gate runs it. `vendor/bin/pint --
 
 - `tests/Fixtures/views/marker.blade.php` is outside the group's file list (see above).
 - `AGENTS.md` carries an uncommitted Ring Master sync line that is not part of this group. It was left as it was.
+
+## Group 3
+
+Docs and gate (criteria 11, 12).
+
+### Files
+
+- `tests/Feature/DocsTest.php` (new): the README names `polycart.carts`, `polycart.cart` and `polycart.types`; a dataset asserts the README, CLAUDE.md, `docs/sources-and-history.md` and the Boost skill each list all three keys; no file under `src`, `resources` or `docs` (excluding `docs/agent/specs`), nor README or CLAUDE.md, contains `audit-trail` or `historyNavItem` (offenders are reported by path and needle).
+- `README.md`: Atrium is optional and an Atrium older than the registry is refused; the History bullet says history comes from Keen's History section through the registry and that the cart history UI needs an Atrium with the registry and Keen's History section; the history row is gone from the Permissions table; new "Screen extensions" subsection with the keys, kinds, records and slots table, a registration example, the `permission()`-through-`ScreenAccess` rule (operators, authorization off, `authorize()` for an own check) and the own-authorization-first rule; "read history" points at Keen's History section.
+- `CHANGELOG.md` (Unreleased): a Breaking entry with the upgrade note (cart history UI needs an Atrium with the registry and Keen's History section; `conflict` on old Atrium). In Added, the unreleased Audit log nav entry is replaced by the screen extensions entry (keys, slots, `CartTypeRow`, `permission()` rule) and the WithoutAtrium suite; the unreleased inline-history entry now points at Keen's History section.
+- `CLAUDE.md`: a symlink to `AGENTS.md`, so `AGENTS.md` was edited. The audit-trail sentence is replaced (screens draw no history, no History nav item, Keen attaches through the registry), and two bullets describe the screens (keys, slots, `Screens`, `resolved`, the access closure, `ResetsScreenExtensions`) and Atrium being optional (arch rule, WithoutAtrium suite). Only these hunks were staged; the uncommitted Ring Master sync line in `AGENTS.md` stays uncommitted.
+- `resources/boost/skills/polycart-development/SKILL.md`: audit-trail text removed; history from Keen through the registry; the three keys and slots with how to register; `permission()` follows `ScreenAccess`.
+- `docs/sources-and-history.md`: "In the Atrium dashboard" now says history comes from Keen's History section on the registry, the upgrade need, a keys and slots table, and the `permission()` rule.
+- `composer.json` and `tests/Feature/ComposerTest.php` (**outside the group's file list**, as the task instructed): the Atrium `conflict` constraint is now exactly `<0.1.0` (group 2 wrote `<1.0`), and the test asserts that exact value. `composer.local.json` was not regenerated; in this worktree it has no `conflict` section, so it was left alone. `composer validate` passes.
+
+### Tests
+
+The suite was not run here, as instructed; the gate runs `composer test` and `vendor/bin/pest` (3.3). `vendor/bin/pint --test` passes on `DocsTest.php` and `ComposerTest.php`, and a grep finds `audit-trail` and `historyNavItem` only under `docs/agent/specs`.
+
+### Deviations
+
+- `composer.json` and `tests/Feature/ComposerTest.php` are outside the group's file list (conflict constraint fix, per the task).
+- `CLAUDE.md` is a symlink; the change is in `AGENTS.md`.

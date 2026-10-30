@@ -45,7 +45,7 @@
         "refactor-circus/pennantplus": "Switch Polycart in Atrium on and off with the PolycartSupportFeature Pennant feature (dev-main)."
     },
     "conflict": {
-        "refactor-circus/atrium": "<1.0"
+        "refactor-circus/atrium": "<0.1.0"
     },
     "autoload": {
         "psr-4": {

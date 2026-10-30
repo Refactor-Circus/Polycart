@@ -433,13 +433,13 @@ When [`refactor-circus/cortex`](https://github.com/Refactor-Circus/cortex) is in
 
 ## Atrium dashboard
 
-When [`refactor-circus/atrium`](https://github.com/Refactor-Circus/Atrium) is installed, Polycart adds pages to the dashboard behind Atrium's own gate:
+When [`refactor-circus/atrium`](https://github.com/Refactor-Circus/Atrium) is installed, Polycart adds pages to the dashboard behind Atrium's own gate. Atrium stays optional: without it Polycart's JSON API, MCP server and code work as before, and an Atrium older than the screen extensions registry is refused by Composer. Polycart adds:
 
 - **Carts:** filter the list, and open a cart to see its place in the tree and manage members and visibility. You can also edit its line quantities, move its status, convert it, rename it, edit its meta, clear it or delete it. Only the statuses and conversions its type allows are offered.
 - **Cart types:** every registered type and its rules.
 - **Widgets:** *Carts by type* and *Recent carts*.
 - **Search:** find carts from Atrium's search.
-- **History:** with [refactor-circus/keen](https://github.com/Refactor-Circus/Keen) installed, a cart's page shows its history and the carts page Polycart's recent history.
+- **History:** comes from [refactor-circus/keen](https://github.com/Refactor-Circus/Keen), not Polycart. Keen's History section and navigation attach to Polycart's screens through Atrium's screen extensions registry (below); Polycart draws no history of its own. A cart's history on its page therefore needs an Atrium with the registry and a Keen with its History section.
 
 The screens follow Atrium's screen conventions: actions are icon buttons (the label is the tooltip), each navigation item has an icon, and a cart's status is a coloured dot with the status on hover. `RefactorCircus\Polycart\Atrium\Badges` picks the colour by the status's meaning: `info` only for pending or awaiting states such as `pending` and `submitted`, `success` for done or active, `warning` for held, `danger` for failed or refused, `neutral` for over (and for any expired cart), and `primary` for anything else.
 
@@ -458,7 +458,6 @@ With `polycart.authorization` on (the default), the dashboard asks the policies 
 | Changing a line's quantity / removing a line | `update` / `delete` on the line |
 | Visibility | `share` on the cart |
 | Adding a member / removing one | `create` on `CartMemberModel` with the cart / `delete` on the member |
-| Polycart's history on the carts page | the history endpoint's check: the `viewAuditLog` Gate ability, when defined |
 
 A control is hidden unless its action would be allowed, and the action itself answers 403 otherwise. Lists, widgets and search hold only the carts the user can access, as the JSON API's list does. In your own Blade views, `@polycartCan('update', $cart) ... @endpolycartCan` asks the same question. With `polycart.authorization` off, everything is shown and allowed.
 
@@ -479,6 +478,30 @@ Gate::define('manage-carts', fn (User $user): bool => $user->is_support);
 ```
 
 An operator sees every cart in the lists, widgets and search, and is allowed every action and control on Polycart's carts, lines and members: viewing, editing, deleting, moving to any status the cart's type allows, converting and sharing. Guests are never operators. It applies to the dashboard only: the JSON API and MCP tools still act as the user's role on each cart allows. In your own views, `@polycartCan` answers the same way, and `RefactorCircus\Polycart\Atrium\ScreenAccess::operator($user)` tells you whether a user is one.
+
+### Screen extensions
+
+Polycart's three pages are screens on Atrium's screen extensions registry, so other packages (Keen's History among them) add tabs and sections to them without Polycart knowing they exist. Polycart registers nothing into other packages' screens.
+
+| Screen key | Page | Kind | Record | Slots |
+| --- | --- | --- | --- | --- |
+| `polycart.carts` | Carts (`atrium.polycart.carts.index`) | list | none; each row is its `CartModel` | `header.actions`, `before`, `after`, `row.actions` |
+| `polycart.cart` | A cart (`atrium.polycart.carts.show`) | detail | the `CartModel` | `header.actions`, `before`, `aside`, `after` |
+| `polycart.types` | Cart types (`atrium.polycart.types.index`) | list | none; each row is a `RefactorCircus\Polycart\Atrium\Data\CartTypeRow` | `header.actions`, `before`, `after`, `row.actions` |
+
+None has tabs of its own, so each opens on Atrium's `overview` tab, and a registered tab, when open, replaces the page body (only `header.actions` stays). `aside` sits in the cart page's side column and `row.actions` in a trailing cell of each row.
+
+```php
+use RefactorCircus\Atrium\Domains\Screens\Data\SectionDefinition;
+use RefactorCircus\Atrium\Facades\Atrium;
+
+Atrium::screens()->section('polycart.cart', 'after', SectionDefinition::make('acme.shipping')->view('acme::cart-shipping')->permission('view'));
+Atrium::screens()->section('polycart.carts', 'row.actions', SectionDefinition::make('acme.export')->view('acme::export-button')->permission('update'));
+```
+
+A `permission()` on an extension is decided by Polycart's `RefactorCircus\Polycart\Atrium\ScreenAccess`, the same rule as the page's own controls, asked about the screen's record or the row's cart (`polycart.types` rows and screens without a record are asked about as `CartModel::class`). So, like every Polycart control, a `permission()` extension is shown to [operators](#operators-showing-every-cart) and to everyone while `polycart.authorization` is off. An extension that needs a check of its own uses `authorize()` instead.
+
+Each page checks its own access first: a user the page refuses gets 403 before any extension is asked.
 
 ### Switching it off
 
@@ -506,7 +529,7 @@ CartModel::query()->fromSource('mcp')->get();
 Keen::record('cart.exported')->on($cart)->with(['reference' => 'SO-1042'])->save();   // your own events
 ```
 
-Read a cart's history from `GET /polycart/history?subject_type=...&subject_id=...`, the `list-polycart-history-tool` MCP tool, or its Atrium page.
+Read a cart's history from `GET /polycart/history?subject_type=...&subject_id=...`, the `list-polycart-history-tool` MCP tool, or Keen's History section on the cart's Atrium page.
 
 **Full guide:** [Sources and history](docs/sources-and-history.md). It covers sources, every recorded action, where a cart came from, reading history, and upgrading from the old activity log.
 

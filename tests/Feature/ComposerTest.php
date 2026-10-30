@@ -37,8 +37,7 @@ it('keeps Atrium optional: suggested, never required', function (): void {
 it('refuses an Atrium older than the screen extensions registry', function (): void {
     $conflict = composerSection('conflict');
 
-    expect($conflict)->toHaveKey('refactor-circus/atrium')
-        ->and($conflict['refactor-circus/atrium'])->toBeString()->toStartWith('<');
+    expect($conflict)->toHaveKey('refactor-circus/atrium', '<0.1.0');
 });
 
 it('builds against the unreleased Atrium and Keen until the group merges', function (): void {
