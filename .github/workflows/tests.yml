@@ -67,3 +67,32 @@ jobs:
       - name: Test Suite (Windows)
         if: runner.os == 'Windows'
         run: vendor/bin/pest
+
+  without-atrium:
+    runs-on: ubuntu-latest
+
+    name: P8.5 - L13.* - without Atrium
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: 8.5
+          extensions: dom, curl, libxml, mbstring, zip, fileinfo, sqlite, pdo_sqlite, bcmath, intl
+          ini-values: error_reporting=E_ALL
+          tools: composer:v2
+          coverage: none
+
+      # refactor-circus/cortex requires Atrium, so it leaves with it. Scripts stay off:
+      # testbench.yaml's workbench providers name Atrium.
+      - name: Remove Atrium
+        run: composer remove --dev refactor-circus/atrium refactor-circus/cortex --no-update --no-interaction
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress --no-scripts
+
+      - name: Test Suite without Atrium
+        run: composer test:without-atrium
