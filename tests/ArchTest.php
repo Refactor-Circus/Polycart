@@ -23,8 +23,8 @@ arch('the package source declares strict types')
 // so the rest of the package loads without it (tests/WithoutAtrium).
 arch('code outside src/Atrium uses no Atrium class')
     ->expect('RefactorCircus\Polycart')
-    ->ignoring('RefactorCircus\Polycart\Atrium')
-    ->not->toUse('RefactorCircus\Atrium');
+    ->not->toUse('RefactorCircus\Atrium')
+    ->ignoring('RefactorCircus\Polycart\Atrium');
 
 arch('actions are final')
     ->expect(Arch::domainNamespaces('RefactorCircus\Polycart', POLYCART_DOMAINS, 'Actions'))

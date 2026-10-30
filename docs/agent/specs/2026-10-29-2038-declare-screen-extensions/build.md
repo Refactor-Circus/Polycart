@@ -97,3 +97,19 @@ The suite was not run here, as instructed; the gate runs `composer test` and `ve
 
 - `composer.json` and `tests/Feature/ComposerTest.php` are outside the group's file list (conflict constraint fix, per the task).
 - `CLAUDE.md` is a symlink; the change is in `AGENTS.md`.
+
+## Rework round 1
+
+### Fixes
+
+- **Gate blocker (42 failures, `historyNavItem()` undefined).** The cause was the environment, not Polycart's code. `vendor/refactor-circus/pennantplus` linked to the `PennantPlus` main checkout, which still calls `historyNavItem()`. Atrium's registry branch removed that method. The vendor link now points at `../PennantPlus--2026-10-29-2038-declare-screen-extensions`, the group's PennantPlus job branch. That branch drops the call and adds no dependencies, which matches how `atrium` already links to its job worktree. `vendor/` is gitignored, so nothing about this is committed. Once the group merges, CI installs PennantPlus `dev-main` without the call. If the factory reinstalls from `composer.local.json` (which lists `../PennantPlus`), it must use the PennantPlus job worktree, as it does for Atrium.
+- **Arch rule error (`Method [ignoring] does not exist in [string]`).** It showed up once the 500s were gone. In Pest 5, `ignoring()` exists only on the arch expectation that `toUse()` returns, so in `tests/ArchTest.php` the rule now reads `->expect('RefactorCircus\Polycart')->not->toUse('RefactorCircus\Atrium')->ignoring('RefactorCircus\Polycart\Atrium')`. The meaning is the same as criterion 8's chain; only the order changed.
+
+### Tests
+
+`composer test` passes: phpstan, pint, type coverage 100%, `test:unit` 297/297 and `test:without-atrium` 5/5.
+
+### Deviations
+
+- The arch rule's call order differs from the literal chain in criterion 8 (see above); the literal chain cannot run in Pest 5.
+- `AGENTS.md`'s uncommitted Ring Master sync line and the untracked `round-1/` folder were left as they were.
