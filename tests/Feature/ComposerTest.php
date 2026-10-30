@@ -42,8 +42,8 @@ it('refuses an Atrium older than the screen extensions registry', function (): v
 
 it('builds against the unreleased Atrium and Keen until the group merges', function (): void {
     expect(composerSection('require-dev'))
-        ->toHaveKey('refactor-circus/atrium', 'dev-main')
-        ->toHaveKey('refactor-circus/keen', 'dev-main');
+        ->toHaveKey('refactor-circus/atrium', '^0.1')
+        ->toHaveKey('refactor-circus/keen', '^0.1');
 });
 
 it('runs the WithoutAtrium suite in composer test, after the main suite', function (): void {
