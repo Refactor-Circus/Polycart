@@ -1,0 +1,3 @@
+VERDICT: PASS
+
+Compat review, round 1. Every public break in the diff is one the spec and decisions D-001, D-007, D-008, D-009 and D-013 already settle: removed src/Atrium, the ui and atrium config keys, the polycart-views and polycart-lang tags, the translations, and the Atrium and PennantPlus suggest and conflict entries. Additions are non-breaking: the stats and search routes, the cart-stats tool, new events, and polycart.routes.enabled still defaulting to false. No existing route, payload, event or schema changed. Only the ListCartsTool source description changed, to drop atrium. No findings.

@@ -1,6 +1,6 @@
 id: 2026-11-23-0943-polycart-v2-api-and-mcp-only
 title: 'Polycart v2: API and MCP only'
-status: building
+status: approved
 created: '2026-11-23 09:43'
 release: v2.0.0
 waits_for: [Keystone/2026-11-23-0943-drop-the-atrium-plugin-hook]
@@ -14,4 +14,9 @@ runs:
     run_id: wf_eb70f529-157
     result: needs-decision
     round: 0
+    date: 2026-11-23
+  - workflow: ring-master-factory
+    run_id: wf_41be93c2-ac4
+    result: approved
+    round: 1
     date: 2026-11-23
