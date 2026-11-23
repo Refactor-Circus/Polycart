@@ -172,3 +172,19 @@ Docs, CHANGELOG and final gate (criteria 21-24).
 ### Deviations
 
 - `docs/events.md` (outside the group's files) still says actions run through "code, the JSON API, MCP, Cortex or the dashboard". It names no Atrium class or key, so I left it; dropping "or the dashboard" would be a one-word nit.
+
+## Group 5 (retry)
+
+Docs, CHANGELOG and final gate (criteria 21-24). This retry keeps the work above (5.1-5.5 committed) and finishes the `docs/*.md` loose end it left.
+
+### Files
+
+- `docs/events.md`: the intro no longer lists "the dashboard" as a way actions run. It now says "the JSON API (and any front end on it), MCP or Cortex". The action-event table gains the `ShowCartStatsAction` row (`CartStatsShowingActionEvent` (`viewer`) and `CartStatsShownActionEvent` (`stats`: `CartStats`, `viewer`)), so the guide covers the new action (AC 23: `docs/*.md` describe the package as API plus MCP).
+
+### Tests
+
+- `vendor/bin/pest tests/Feature/DocsTest.php`: 24 passed. As the job asked, I did not run the whole suite. The gate runs `composer test` and `vendor/bin/pest` for 5.5.
+
+### Deviations
+
+- `docs/events.md` is outside the group's file list, but AC 23 covers every `docs/*.md`. `docs/cortex.md` still says "from the dashboard". That sentence is about where Cortex's own users pick tools, not about Polycart, so I left it.
