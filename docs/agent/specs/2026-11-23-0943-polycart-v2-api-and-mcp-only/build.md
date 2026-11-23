@@ -129,3 +129,21 @@ There was no index lock and no merge or rebase in progress. Every file in the gr
 
 - 4.6: I did not run the full suite, as the job asked. The gate runs `vendor/bin/pest`.
 - The working tree also has an uncommitted `.gitignore` change (`/client/node_modules`) that the group's original agent made. `.gitignore` is not in the group's file list, so I left it alone. `client/node_modules` must stay out of git: commit that line in a later round, or add it in group 5.
+
+## Group 4
+
+OpenAPI export and TypeScript client (criteria 15-20), retry for task 4.6. Tasks 4.1-4.5 landed in the salvaged commit above and are kept as they are.
+
+### Files
+
+- `.gitignore`: committed the `/client/node_modules` line that the salvage left uncommitted.
+- `tasks.md`: ticked 4.6.
+
+### Tests
+
+- I did not run the suite, as the job asked. The gate runs `vendor/bin/pest` for 4.6.
+- `client/openapi.sha256` equals `shasum -a 256 openapi.json` (`eb989d1d...ab7e`), so `OpenApiTest`'s stamp case holds for the committed files.
+
+### Deviations
+
+- `.gitignore` is outside the group's file list. Without the line, `client/node_modules` (from `npm --prefix client ci` in `composer client:generate`) shows as untracked and could be committed by mistake.

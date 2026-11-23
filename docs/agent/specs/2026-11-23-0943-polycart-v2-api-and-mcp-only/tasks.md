@@ -44,7 +44,7 @@ criteria: 15, 16, 17, 18, 19, 20
 - [x] 4.3 Create `client/`: `package.json`, `tsconfig.json`, `scripts/stamp.mjs`, `src/index.ts` (`createPolycartClient(options)` around `createClient<paths>`, re-exporting `paths`/`components`/`operations`) and a short `README.md`. Pin exact dependency versions and commit `package-lock.json`.
 - [x] 4.4 Add the `client:generate` composer script. Run it to commit `openapi.json`, `client/src/schema.d.ts` and `client/openapi.sha256`, then run `npm --prefix client run typecheck`.
 - [x] 4.5 Add the CI `client` job (setup-php, setup-node, `composer install`, `composer client:generate`, `git diff --exit-code -- openapi.json client`, `npm --prefix client run typecheck`). Add `/client export-ignore` to `.gitattributes`.
-- [ ] 4.6 Run vendor/bin/pest; all green
+- [x] 4.6 Run vendor/bin/pest; all green
 
 ## Group 5: Docs, CHANGELOG and final gate
 depends on: 1, 2, 3, 4
