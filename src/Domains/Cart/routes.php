@@ -5,6 +5,9 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Route;
 use RefactorCircus\Polycart\Domains\Cart\Http\Controllers\CartController;
 
+Route::get('stats', [CartController::class, 'stats'])->name('stats.show');
+Route::get('search', [CartController::class, 'search'])->name('search.index');
+
 Route::get('carts', [CartController::class, 'index'])->name('carts.index');
 Route::post('carts', [CartController::class, 'store'])->name('carts.store');
 Route::post('carts/active', [CartController::class, 'active'])->name('carts.active');

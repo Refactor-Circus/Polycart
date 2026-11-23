@@ -10,6 +10,7 @@ use Laravel\Mcp\Server\Attributes\Version;
 use Laravel\Mcp\Server\Tool;
 use RefactorCircus\Keystone\Mcp\Server;
 use RefactorCircus\Polycart\Domains\Cart\Mcp\Tools\ActiveCartTool;
+use RefactorCircus\Polycart\Domains\Cart\Mcp\Tools\CartStatsTool;
 use RefactorCircus\Polycart\Domains\Cart\Mcp\Tools\ClearCartTool;
 use RefactorCircus\Polycart\Domains\Cart\Mcp\Tools\ConvertCartTool;
 use RefactorCircus\Polycart\Domains\Cart\Mcp\Tools\CreateCartTool;
@@ -55,6 +56,7 @@ final class PolycartServer extends Server
 
         // Carts
         ListCartsTool::class,
+        CartStatsTool::class,
         ShowCartTool::class,
         CreateCartTool::class,
         ActiveCartTool::class,

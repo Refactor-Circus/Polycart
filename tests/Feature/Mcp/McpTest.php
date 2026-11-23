@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Testing\Fluent\AssertableJson;
 use RefactorCircus\Polycart\Domains\Cart\Mcp\Tools\ActiveCartTool;
+use RefactorCircus\Polycart\Domains\Cart\Mcp\Tools\CartStatsTool;
 use RefactorCircus\Polycart\Domains\Cart\Mcp\Tools\ClearCartTool;
 use RefactorCircus\Polycart\Domains\Cart\Mcp\Tools\ConvertCartTool;
 use RefactorCircus\Polycart\Domains\Cart\Mcp\Tools\CreateCartTool;
@@ -28,6 +29,23 @@ it('lists the cart types', function (): void {
             ->has('data', 10)
             ->where('data.2.key', 'quote')
             ->where('data.2.converts_to', ['order'])
+            ->etc());
+});
+
+it('shows the cart counts per type and the recent carts', function (): void {
+    $quote = Polycart::create('quote');
+    $quote->add(product());
+
+    mcpTool(CartStatsTool::class)
+        ->assertOk()
+        ->assertStructuredContent(fn (AssertableJson $json): AssertableJson => $json
+            ->has('data.by_type', 10)
+            ->where('data.by_type.0', ['type' => 'cart', 'count' => 0])
+            ->where('data.by_type.2', ['type' => 'quote', 'count' => 1])
+            ->has('data.recent', 1)
+            ->where('data.recent.0.id', $quote->id)
+            ->where('data.recent.0.lines_count', 1)
+            ->missing('data.recent.0.lines')
             ->etc());
 });
 

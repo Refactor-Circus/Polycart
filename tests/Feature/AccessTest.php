@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Testing\Fluent\AssertableJson;
 use RefactorCircus\Polycart\Domains\Cart\Mcp\Tools\ActiveCartTool;
+use RefactorCircus\Polycart\Domains\Cart\Mcp\Tools\CartStatsTool;
 use RefactorCircus\Polycart\Domains\Cart\Mcp\Tools\CreateCartTool;
 use RefactorCircus\Polycart\Domains\Cart\Mcp\Tools\ListCartsTool;
 use RefactorCircus\Polycart\Domains\Cart\Mcp\Tools\ShowCartTool;
@@ -83,6 +85,43 @@ it('lists only the carts the user can access', function (): void {
     mcpToolAs($this->ann, ListCartsTool::class)
         ->assertOk()
         ->assertStructuredContent(fn (AssertableJson $json): AssertableJson => $json->has('data', 1)->where('data.0.id', $mine->id)->etc());
+});
+
+it('lets only a signed-in user who may list carts read the stats or search', function (): void {
+    $this->getJson(route('polycart.stats.show'))->assertUnauthorized();
+    $this->getJson(route('polycart.search.index', ['q' => 'lobby']))->assertUnauthorized();
+
+    Gate::before(fn (mixed $user, string $ability): ?bool => $ability === 'viewAny' ? false : null);
+
+    $this->actingAs($this->ann)->getJson(route('polycart.stats.show'))->assertForbidden();
+    $this->actingAs($this->ann)->getJson(route('polycart.search.index', ['q' => 'lobby']))->assertForbidden();
+    mcpToolAs($this->ann, CartStatsTool::class)->assertHasErrors(['Unauthorized.']);
+});
+
+it('counts, lists and finds only the carts the user can access', function (): void {
+    $mine = Polycart::create('cart', $this->ann, ['label' => 'Ann lobby'], $this->sales);
+    Polycart::create('cart', $this->bob, ['label' => 'Bob lobby'], $this->sales);
+    Polycart::create('quote', $this->bob, ['label' => 'Bob quote lobby'], $this->sales);
+
+    $this->actingAs($this->ann)->getJson(route('polycart.stats.show'))
+        ->assertOk()
+        ->assertJsonPath('data.by_type.0', ['type' => 'cart', 'count' => 1])
+        ->assertJsonPath('data.by_type.2', ['type' => 'quote', 'count' => 0])
+        ->assertJsonCount(1, 'data.recent')
+        ->assertJsonPath('data.recent.0.id', $mine->id);
+
+    $this->actingAs($this->ann)->getJson(route('polycart.search.index', ['q' => 'lobby']))
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $mine->id);
+
+    mcpToolAs($this->ann, CartStatsTool::class)
+        ->assertOk()
+        ->assertStructuredContent(fn (AssertableJson $json): AssertableJson => $json
+            ->where('data.by_type.0', ['type' => 'cart', 'count' => 1])
+            ->has('data.recent', 1)
+            ->where('data.recent.0.id', $mine->id)
+            ->etc());
 });
 
 it('checks each change against the member\'s role', function (): void {

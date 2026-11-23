@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use RefactorCircus\Keystone\Testing\Arch;
+use RefactorCircus\Polycart\Mcp\PolycartServer;
 use RefactorCircus\Polycart\Support\Tables;
 
 const POLYCART_DOMAINS = __DIR__.'/../src/Domains';
@@ -75,13 +76,19 @@ arch('requests validate once, with the Data rules, and build from what they vali
     )))
     ->toBeEmpty();
 
+// A request counts as offered when a tool on the server handles it, whatever
+// the tool is called (`cart-stats` is CartStatsTool on ShowCartStatsMcpRequest).
 arch('every MCP request has a tool on the server')
     ->expect(function (): array {
-        $server = (string) file_get_contents(dirname(__DIR__).'/src/Mcp/PolycartServer.php');
+        $handled = array_map(function (string $tool): string {
+            $type = (new ReflectionMethod($tool, 'handle'))->getParameters()[0]->getType();
+
+            return $type instanceof ReflectionNamedType ? class_basename($type->getName()) : '';
+        }, PolycartServer::TOOLS);
 
         return array_values(array_filter(
-            array_map(fn (string $path): string => basename($path, 'McpRequest.php'), (array) glob(dirname(__DIR__).'/src/Domains/*/Mcp/Requests/*McpRequest.php')),
-            fn (string $name): bool => ! str_contains($server, $name.'Tool::class'),
+            array_map(fn (string $path): string => basename($path, '.php'), (array) glob(dirname(__DIR__).'/src/Domains/*/Mcp/Requests/*McpRequest.php')),
+            fn (string $request): bool => ! in_array($request, $handled, true),
         ));
     })
     ->toBeEmpty();
