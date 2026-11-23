@@ -72,6 +72,6 @@ it('regenerates openapi.json and the client in client:generate', function (): vo
 
 it('builds against Cortex and Keen to test their integrations', function (): void {
     expect(composerSection('require-dev'))
-        ->toHaveKey('refactor-circus/cortex', '^0.1')
-        ->toHaveKey('refactor-circus/keen', '^0.1');
+        ->toHaveKey('refactor-circus/cortex', '^2.0')
+        ->toHaveKey('refactor-circus/keen', '^2.0');
 });

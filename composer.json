@@ -18,7 +18,7 @@
     ],
     "require": {
         "php": "^8.5",
-        "refactor-circus/keystone": "^0.1",
+        "refactor-circus/keystone": "^2.0",
         "laravel/framework": "^13.35",
         "laravel/mcp": "^1.0.1"
     },
@@ -32,8 +32,8 @@
         "pestphp/pest-plugin-laravel": "^5.0.1",
         "pestphp/pest-plugin-type-coverage": "^5.0.3",
         "phpstan/extension-installer": "^1.4.3",
-        "refactor-circus/cortex": "^0.1",
-        "refactor-circus/keen": "^0.1",
+        "refactor-circus/cortex": "^2.0",
+        "refactor-circus/keen": "^2.0",
         "refactor-circus/ringside": "dev-main",
         "refactor-circus/standards": "dev-main"
     },
@@ -119,6 +119,9 @@
             "aliases": {
                 "Polycart": "RefactorCircus\\Polycart\\Facades\\Polycart"
             }
+        },
+        "branch-alias": {
+            "dev-main": "2.0.x-dev"
         }
     },
     "config": {
