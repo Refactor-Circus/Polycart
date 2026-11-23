@@ -2,7 +2,6 @@ laravel: '@testbench'
 
 providers:
   - Laravel\Mcp\Server\McpServiceProvider
-  - RefactorCircus\Atrium\AtriumServiceProvider
   - RefactorCircus\Polycart\PolycartServiceProvider
   - Workbench\App\Providers\WorkbenchServiceProvider
 
@@ -11,17 +10,15 @@ migrations:
   - database/migrations
   # refactor-circus/cortex is a dev dependency and auto-discovered, so the demo runs with it.
   - vendor/refactor-circus/cortex/database/migrations
-  # refactor-circus/pennantplus (dev dependency, auto-discovered) decides PolycartSupportFeature
-  # through Pennant, whose features table lives here.
-  - vendor/laravel/pennant/database/migrations
 
 seeders:
   - Workbench\Database\Seeders\DatabaseSeeder
 
 workbench:
-  # Not '/': with a workbench user, Testbench sends a guest at '/' to log in
-  # and back to `start`, which would loop.
-  start: '/atrium/polycart/carts'
+  # The JSON API's cart list, which WorkbenchServiceProvider turns on. Not '/':
+  # with a workbench user, Testbench sends a guest at '/' to log in and back to
+  # `start`, which would loop.
+  start: '/polycart/carts'
   user: admin@example.com
   install: true
   health: false
@@ -39,8 +36,6 @@ workbench:
     - migrate-fresh
   assets:
     - laravel-assets
-    # Atrium's stylesheet and scripts, republished on every build.
-    - atrium-assets
   sync:
     - from: storage
       to: workbench/storage

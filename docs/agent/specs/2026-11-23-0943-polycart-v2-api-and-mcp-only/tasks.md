@@ -28,11 +28,11 @@ depends on: 2
 files: composer.json, tests/Feature/ComposerTest.php, tests/Feature/NoAtriumTest.php, testbench.yaml, workbench/app/Providers/WorkbenchServiceProvider.php, workbench/database/seeders/DatabaseSeeder.php, .github/workflows/tests.yml, .gitattributes, phpunit.without-atrium.xml (delete), tests/WithoutAtrium/** (delete)
 criteria: 11, 12, 13, 14
 
-- [ ] 3.1 Write tests first. In `ComposerTest`, assert that atrium/pennantplus are absent from `require`, `require-dev`, `suggest`, `conflict` and `repositories`; that there is no `extra.atrium` and no `test:without-atrium` script; and that keystone is the only suite package in `require`. Replace the WithoutAtrium cases. Add `tests/Feature/NoAtriumTest.php`, which scans `src/`, `config/`, `database/`, `workbench/`, `testbench.yaml`, `composer.json`, `phpunit.xml.dist`, `.gitattributes` and `.github/` for "atrium" (case-insensitive). Add a workbench assertion that `polycart.routes.enabled` is true and that `workbench.start` is a `/polycart/` path.
-- [ ] 3.2 Edit composer.json: drop atrium and pennantplus from `require-dev`, `suggest`, `conflict` and `repositories`; drop the `test:without-atrium` script and its entry in `test`. Run `composer update` to check that it resolves.
-- [ ] 3.3 Delete `tests/WithoutAtrium/` and `phpunit.without-atrium.xml`. Remove the `without-atrium` CI job, and the `.gitattributes` line for the deleted config.
-- [ ] 3.4 Workbench: in `testbench.yaml`, remove the Atrium provider, the `atrium-assets` and pennant migrations lines, and set `start: '/polycart/carts'`. In `WorkbenchServiceProvider`, drop `ui.enabled`, `show_all` and the pennant store, set `polycart.routes.enabled => true`, and update the docblock. In the seeder, change the `'atrium'` sources to `'http'`.
-- [ ] 3.5 Run vendor/bin/pest; all green
+- [x] 3.1 Write tests first. In `ComposerTest`, assert that atrium/pennantplus are absent from `require`, `require-dev`, `suggest`, `conflict` and `repositories`; that there is no `extra.atrium` and no `test:without-atrium` script; and that keystone is the only suite package in `require`. Replace the WithoutAtrium cases. Add `tests/Feature/NoAtriumTest.php`, which scans `src/`, `config/`, `database/`, `workbench/`, `testbench.yaml`, `composer.json`, `phpunit.xml.dist`, `.gitattributes` and `.github/` for "atrium" (case-insensitive). Add a workbench assertion that `polycart.routes.enabled` is true and that `workbench.start` is a `/polycart/` path.
+- [x] 3.2 Edit composer.json: drop atrium and pennantplus from `require-dev`, `suggest`, `conflict` and `repositories`; drop the `test:without-atrium` script and its entry in `test`. Run `composer update` to check that it resolves.
+- [x] 3.3 Delete `tests/WithoutAtrium/` and `phpunit.without-atrium.xml`. Remove the `without-atrium` CI job, and the `.gitattributes` line for the deleted config.
+- [x] 3.4 Workbench: in `testbench.yaml`, remove the Atrium provider, the `atrium-assets` and pennant migrations lines, and set `start: '/polycart/carts'`. In `WorkbenchServiceProvider`, drop `ui.enabled`, `show_all` and the pennant store, set `polycart.routes.enabled => true`, and update the docblock. In the seeder, change the `'atrium'` sources to `'http'`.
+- [x] 3.5 Run vendor/bin/pest; all green
 
 ## Group 4: OpenAPI export and TypeScript client
 depends on: 1, 3

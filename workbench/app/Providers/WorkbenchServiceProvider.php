@@ -17,7 +17,8 @@ use Workbench\App\Models\User;
 
 /**
  * Turns the workbench into a demo store: Polycart on the workbench User, with
- * its own cart types, teams and catalogue, shown in the Atrium dashboard.
+ * its own cart types, teams and catalogue, served through the JSON API (on
+ * here, off by default in a host) and the MCP server.
  */
 class WorkbenchServiceProvider extends ServiceProvider
 {
@@ -28,14 +29,7 @@ class WorkbenchServiceProvider extends ServiceProvider
     {
         config([
             'auth.providers.users.model' => User::class,
-            // refactor-circus/pennantplus's layered store: users who follow a feature's
-            // global value store nothing, as in a real application.
-            'pennant.default' => 'pennantplus',
-            'pennant.stores.pennantplus' => [
-                'driver' => 'pennantplus',
-                'connection' => null,
-                'table' => 'features',
-            ],
+            'polycart.routes.enabled' => true,
             'polycart.types' => [
                 'cart' => ShopCart::class,
                 'quote' => QuoteCart::class,
@@ -45,9 +39,6 @@ class WorkbenchServiceProvider extends ServiceProvider
             'polycart.owners' => ['user' => User::class],
             'polycart.scopes' => ['team' => Team::class, 'organization' => Organization::class],
             'polycart.purchasables' => ['product' => Product::class],
-            'polycart.ui.enabled' => true,
-            // The demo user is an operator, so every seeded cart is on show.
-            'polycart.atrium.show_all' => true,
         ]);
     }
 

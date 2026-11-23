@@ -63,3 +63,41 @@ Remove the Atrium plugin from code, config and tests (criteria 8, 9, 10, 13).
 
 - Changed `phpunit.xml.dist`, which is outside the group's file list: removed the `PennantPlus` test suite, whose directory this group deletes. The config has `failOnWarning` and `failOnEmptyTestSuite`, so a suite pointing at a missing directory would fail `vendor/bin/pest`.
 - I left `tests/WithoutAtrium/`, `phpunit.without-atrium.xml`, the Atrium cases in `tests/Feature/ComposerTest.php`, `composer.json` and the workbench to Group 3, as the plan assigns. Until Group 3 lands, the `WithoutAtrium` suite still refers to deleted code. It runs only through `composer test:without-atrium`, never `vendor/bin/pest`.
+
+## Group 3
+
+Remove Atrium and PennantPlus from composer, workbench and CI (criteria 11, 12, 13, 14).
+
+### Files
+
+- `composer.json`: removed `refactor-circus/atrium` and `refactor-circus/pennantplus` from `require-dev` and `suggest`, the `conflict` section (it held only Atrium), the Atrium and PennantPlus VCS repositories, the `test:without-atrium` script and its entry in `test`. `require` still names only `refactor-circus/keystone` from the suite. There was no `extra.atrium`.
+- Deleted `tests/WithoutAtrium/` and `phpunit.without-atrium.xml`.
+- `.github/workflows/tests.yml`: removed the `without-atrium` job.
+- `.gitattributes`: removed the `/phpunit.without-atrium.xml` line.
+- `testbench.yaml`: removed `RefactorCircus\Atrium\AtriumServiceProvider`, the `laravel/pennant` migrations line and the `atrium-assets` asset. `workbench.start` is `/polycart/carts`.
+- `workbench/app/Providers/WorkbenchServiceProvider.php`: removed the Pennant store, `polycart.ui.enabled` and `polycart.atrium.show_all`. It sets `polycart.routes.enabled => true`, and the docblock describes the JSON API and MCP server.
+- `workbench/database/seeders/DatabaseSeeder.php`: every `'atrium'` source is now `'http'`, and the docblock says "the API" instead of "the dashboard".
+
+### Tests
+
+- `tests/Feature/ComposerTest.php`:
+  - Keystone is the only suite package in `require`.
+  - Atrium and PennantPlus are absent from `require`, `require-dev`, `suggest` and `conflict`, which is a dataset with one case per section.
+  - No repository URL names Atrium or PennantPlus.
+  - There is no `extra.atrium`.
+  - There is no `test:without-atrium` script, and `test` is exactly analyse, lint:check, test:types and test:unit.
+  - Cortex and Keen stay in `require-dev`.
+  - The WithoutAtrium cases are gone.
+- `tests/Feature/NoAtriumTest.php` (new):
+  - "atrium" (case-insensitive) appears in no file name or contents under `src/`, `config/`, `database/`, `workbench/`, `testbench.yaml`, `composer.json`, `phpunit.xml.dist`, `.gitattributes` or `.github/`.
+  - `phpunit.without-atrium.xml` and `tests/WithoutAtrium/` are gone, and the CI workflow has no `without-atrium`.
+  - Registering `WorkbenchServiceProvider` turns `polycart.routes.enabled` on and sets no `polycart.ui` key and no PennantPlus store.
+  - `testbench.yaml`'s `workbench.start` starts with `/polycart/`. Its providers name no Atrium class, its migrations have no Pennant line, and its assets are only `laravel-assets`.
+  - The seeder's sources are only `http`, `mcp` and `code`.
+- `composer update` resolves. I ran it through the local manifest (`bin/composer-local.php`, then `COMPOSER=composer.local.json composer update refactor-circus/atrium refactor-circus/pennantplus --with-all-dependencies`). It removed `refactor-circus/atrium`, `refactor-circus/pennantplus` and `laravel/pennant` from `vendor/`.
+- `ComposerTest` and `NoAtriumTest` pass (14 tests), and Pint passes on the changed PHP files. I did not run the full suite; the gate runs `vendor/bin/pest`.
+
+### Deviations
+
+- Regenerating the gitignored `composer.local.json` with `bin/composer-local.php` wrote the committed `^0.1` constraints for Keystone, Cortex and Keen. The path repositories offer only `dev-main`, so I set those three back to `dev-main` in the local file, as the job's install had them (the lock's stability flags). No committed file is affected.
+- The workbench JSON API runs on the `api` middleware group, while `SignInWorkbenchUser` is appended to `web`. With `polycart.authorization` on (the default), opening `start` in a browser answers 401. This is raised as a decision; nothing was changed for it.

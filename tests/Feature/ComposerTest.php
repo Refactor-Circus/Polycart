@@ -5,7 +5,7 @@ declare(strict_types=1);
 /**
  * One top-level section of Polycart's composer.json.
  *
- * @return array<string, mixed>
+ * @return array<array-key, mixed>
  */
 function composerSection(string $key): array
 {
@@ -16,64 +16,48 @@ function composerSection(string $key): array
 
     expect($section)->toBeArray();
 
-    /** @var array<string, mixed> $section */
+    /** @var array<array-key, mixed> $section */
     return $section;
 }
 
 it('requires Keystone and no other suite package', function (): void {
     $suite = array_values(array_filter(
         array_keys(composerSection('require')),
-        fn (string $package): bool => str_starts_with($package, 'refactor-circus/'),
+        fn (int|string $package): bool => str_starts_with((string) $package, 'refactor-circus/'),
     ));
 
     expect($suite)->toBe(['refactor-circus/keystone']);
 });
 
-it('keeps Atrium optional: suggested, never required', function (): void {
-    expect(composerSection('require'))->not->toHaveKey('refactor-circus/atrium')
-        ->and(composerSection('suggest'))->toHaveKey('refactor-circus/atrium');
+it('names neither Atrium nor PennantPlus in any dependency list', function (string $section): void {
+    expect(composerSection($section))
+        ->not->toHaveKey('refactor-circus/atrium')
+        ->not->toHaveKey('refactor-circus/pennantplus');
+})->with(['require', 'require-dev', 'suggest', 'conflict']);
+
+it('has no repository for Atrium or PennantPlus', function (): void {
+    $urls = array_map(
+        fn (mixed $repository): string => is_array($repository) && is_string($repository['url'] ?? null) ? $repository['url'] : '',
+        composerSection('repositories'),
+    );
+
+    expect($urls)->not->toBeEmpty()
+        ->and(preg_grep('/atrium|pennantplus/i', $urls))->toBe([]);
 });
 
-it('refuses an Atrium older than the screen extensions registry', function (): void {
-    $conflict = composerSection('conflict');
-
-    expect($conflict)->toHaveKey('refactor-circus/atrium', '<0.1.0');
+it('declares no Atrium plugin in extra', function (): void {
+    expect(composerSection('extra'))->not->toHaveKey('atrium');
 });
 
-it('builds against the unreleased Atrium and Keen until the group merges', function (): void {
-    expect(composerSection('require-dev'))
-        ->toHaveKey('refactor-circus/atrium', '^0.1')
-        ->toHaveKey('refactor-circus/keen', '^0.1');
-});
-
-it('runs the WithoutAtrium suite in composer test, after the main suite', function (): void {
+it('has no WithoutAtrium suite in its scripts', function (): void {
     $scripts = composerSection('scripts');
 
-    expect($scripts)->toHaveKey('test:without-atrium')
-        ->and(implode(' ', (array) $scripts['test:without-atrium']))
-        ->toContain('--configuration=phpunit.without-atrium.xml')
-        ->toContain('--test-directory=tests/WithoutAtrium');
-
-    $test = (array) $scripts['test'];
-    $unit = array_search('@test:unit', $test, true);
-
-    expect($unit)->toBeInt()
-        ->and($test[$unit + 1] ?? null)->toBe('@test:without-atrium');
+    expect($scripts)->not->toHaveKey('test:without-atrium')
+        ->and((array) $scripts['test'])->toBe(['@analyse', '@lint:check', '@test:types', '@test:unit']);
 });
 
-it('loads the WithoutAtrium suite through the bootstrap that unloads Atrium', function (): void {
-    $config = simplexml_load_file(dirname(__DIR__, 2).'/phpunit.without-atrium.xml');
-
-    expect($config)->not->toBeFalse()
-        ->and((string) $config['bootstrap'])->toBe('tests/WithoutAtrium/bootstrap.php')
-        ->and((string) $config->testsuites->testsuite->directory)->toBe('tests/WithoutAtrium');
-});
-
-it('runs the WithoutAtrium suite in CI with Atrium uninstalled', function (): void {
-    $workflow = (string) file_get_contents(dirname(__DIR__, 2).'/.github/workflows/tests.yml');
-
-    expect($workflow)
-        ->toContain('without-atrium:')
-        ->toContain('composer remove --dev refactor-circus/atrium refactor-circus/cortex --no-update')
-        ->toContain('composer test:without-atrium');
+it('builds against Cortex and Keen to test their integrations', function (): void {
+    expect(composerSection('require-dev'))
+        ->toHaveKey('refactor-circus/cortex', '^0.1')
+        ->toHaveKey('refactor-circus/keen', '^0.1');
 });
