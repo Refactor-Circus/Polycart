@@ -30,6 +30,9 @@ class WorkbenchServiceProvider extends ServiceProvider
         config([
             'auth.providers.users.model' => User::class,
             'polycart.routes.enabled' => true,
+            // Workbench only: run the API on the 'web' group so SignInWorkbenchUser signs the
+            // demo user in (D-016). Hosts keep the package default ['api'] plus their own guard.
+            'polycart.routes.middleware' => ['web'],
             'polycart.types' => [
                 'cart' => ShopCart::class,
                 'quote' => QuoteCart::class,
