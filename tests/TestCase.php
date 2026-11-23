@@ -6,8 +6,6 @@ namespace RefactorCircus\Polycart\Tests;
 
 use Laravel\Mcp\Server\McpServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
-use RefactorCircus\Atrium\AtriumServiceProvider;
-use RefactorCircus\Atrium\Testing\ResetsScreenExtensions;
 use RefactorCircus\Polycart\PolycartServiceProvider;
 use RefactorCircus\Polycart\Tests\Fixtures\Models\Organization;
 use RefactorCircus\Polycart\Tests\Fixtures\Models\Person;
@@ -27,17 +25,6 @@ use Workbench\App\Models\User;
 
 abstract class TestCase extends Orchestra
 {
-    // What a test registers on Atrium's screens is gone by the next test.
-    use ResetsScreenExtensions;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        // Views the screen extension tests register as tabs and sections.
-        $this->app['view']->addNamespace('polycart-tests', __DIR__.'/Fixtures/views');
-    }
-
     /**
      * @return array<int, class-string>
      */
@@ -45,17 +32,12 @@ abstract class TestCase extends Orchestra
     {
         return [
             McpServiceProvider::class,
-            AtriumServiceProvider::class,
             PolycartServiceProvider::class,
         ];
     }
 
     protected function defineEnvironment($app): void
     {
-        // refactor-circus/cortex is a dev dependency, so Atrium discovers its plugin here
-        // without its migrations; its navigation would query missing tables.
-        $app['config']->set('atrium.disabled', ['cortex']);
-
         $app['config']->set('app.key', 'base64:'.base64_encode(str_repeat('a', 32)));
         $app['config']->set('database.default', 'testing');
         $app['config']->set('polycart.routes.enabled', true);

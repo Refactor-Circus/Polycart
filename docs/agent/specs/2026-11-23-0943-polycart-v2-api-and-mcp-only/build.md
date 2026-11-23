@@ -27,3 +27,39 @@ Stats and search API, cart-stats MCP tool (criteria 1-7).
 
 - Changed `tests/Feature/Mcp/OutputSchemaTest.php`, which is outside the group's file list: the number of tools with structured content goes from 19 to 20 because of `cart-stats`.
 - Changed `tests/ArchTest.php`, which is outside the group's file list. The rule "every MCP request has a tool on the server" matched `{X}McpRequest` to `{X}Tool::class` by name, so the spec's pair `ShowCartStatsMcpRequest`/`CartStatsTool` (AC 7) could never pass it. The rule now checks that some tool in `PolycartServer::TOOLS` takes the request in its `handle()`. That is the same rule with the name coupling removed, and every existing pair still passes. `PARITY_EXCEPTIONS` is unchanged.
+
+## Group 2
+
+Remove the Atrium plugin from code, config and tests (criteria 8, 9, 10, 13).
+
+### Files
+
+- Deleted `src/Atrium/` (plugin, screens, controllers, `ScreenAccess`, `PolycartSupportFeature`, `CartTypeRow`, `Badges`, `Format`), `resources/views/` and `lang/`.
+- `src/PolycartServiceProvider.php`: `boot()` is now policies, MCP server, Cortex, history routes, not-found responses and the config/migrations publishes. There is no `registerAtriumPlugin()`, `loadViewsFrom()`, `Blade::if('polycartCan')`, `loadTranslationsFrom()`, `polycart-views` or `polycart-lang`.
+- `config/polycart.php`: removed the `ui` and `atrium` sections and the `PolycartSupportFeature` import. The `routes` banner now names the stats and search endpoints, says that `openapi.json` and the TypeScript client (`@refactor-circus/polycart-client`) describe the routes, and says that a front end built on the API needs it on, behind the host's auth middleware. `routes.enabled` stays `false`. The `audit` banner names only the history route and MCP tool. The file no longer contains "atrium" or "dashboard".
+- `src/Domains/Cart/Mcp/Tools/ListCartsTool.php`: removed `atrium` from the example sources in the `source` description.
+- Deleted the Atrium-only tests: `tests/Feature/Ui/`, `tests/Feature/NavigationSectionTest.php`, `tests/Unit/CartTypeRowTest.php`, `tests/PennantPlus/`, `tests/PennantPlusTestCase.php`, `tests/Fixtures/Features/` and `tests/Fixtures/views/`.
+- `tests/Pest.php`: removed the `PennantPlusTestCase` `uses()`.
+- `tests/TestCase.php`: registers only `McpServiceProvider` and `PolycartServiceProvider`. It no longer uses `ResetsScreenExtensions`, adds the `polycart-tests` view namespace or sets `atrium.disabled`.
+- `tests/Feature/SourceTest.php`: removed the case for copies made from the dashboard.
+- `tests/Feature/PerformanceTest.php`: removed the two dashboard query-budget cases and the carts-by-type widget case. `StatsTest`'s "same queries however many carts and types" case (Group 1) now holds the counts budget.
+- `tests/Keen/HistoryTest.php`: removed the Atrium-only `beforeEach` (CSRF exception, local environment) and the case that opened the Atrium screens. Its history route and tool assertions duplicated "serves a cart's history from the history endpoint and tool", which stays.
+- `tests/Feature/DocsTest.php`: removed the two screen-key cases and `DOCS_SCREEN_KEYS`, keeping the audit-trail case. Group 5 adds the new docs promises.
+
+### Tests
+
+- `tests/ArchTest.php`: "the package uses no Atrium class" is `expect('RefactorCircus\Polycart')->not->toUse('RefactorCircus\Atrium')`, with no `ignoring()`.
+- `tests/Feature/ServiceProviderTest.php`:
+  - The `polycart` tag publishes exactly `config/polycart.php` and `database/migrations`.
+  - The `polycart-views` and `polycart-lang` groups are absent and publish nothing.
+  - There is no `polycart` view hint or translation namespace.
+  - There are no `polycartCan`/`endpolycartCan`/`unlesspolycartCan` Blade directives.
+  - The config file has no `ui` or `atrium` key, no `PolycartSupportFeature` and no "atrium" or "dashboard" text.
+  - `routes.enabled` defaults to `false`, and the file mentions `openapi.json`, the client and auth middleware.
+  - With `polycart.routes.enabled` off, booting `CartServiceProvider` on an emptied router registers neither `polycart.stats.show` nor `polycart.search.index`, and with it on it registers both.
+- I did not run the suite in this step; the gate runs `vendor/bin/pest`. `php -l` passes on the changed PHP files.
+
+### Deviations
+
+- Changed `phpunit.xml.dist`, which is outside the group's file list: removed the `PennantPlus` test suite, whose directory this group deletes. The config has `failOnWarning` and `failOnEmptyTestSuite`, so a suite pointing at a missing directory would fail `vendor/bin/pest`.
+- I left `tests/WithoutAtrium/`, `phpunit.without-atrium.xml`, the Atrium cases in `tests/Feature/ComposerTest.php`, `composer.json` and the workbench to Group 3, as the plan assigns. Until Group 3 lands, the `WithoutAtrium` suite still refers to deleted code. It runs only through `composer test:without-atrium`, never `vendor/bin/pest`.

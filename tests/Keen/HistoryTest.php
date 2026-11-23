@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Mcp\Server\Transport\FakeTransporter;
 use RefactorCircus\Keen\Domains\Audit\Models\AuditEntryModel;
@@ -12,13 +11,6 @@ use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
 use RefactorCircus\Polycart\Facades\Polycart;
 use RefactorCircus\Polycart\Mcp\PolycartServer;
 use RefactorCircus\Polycart\Mcp\Tools\ListPolycartHistoryTool;
-
-beforeEach(function (): void {
-    ValidateCsrfToken::except(['*']);
-
-    // Atrium denies access outside local until a gate is defined.
-    app()->detectEnvironment(fn (): string => 'local');
-});
 
 /**
  * @return Collection<int, AuditEntryModel>
@@ -76,27 +68,6 @@ it('records a copying conversion on the copy, naming the original', function ():
 
     expect($entry->subject_id)->toBe($quote->id)
         ->and($entry->context)->toMatchArray(['converted_from' => $cart->id, 'from' => 'cart', 'to' => 'quote']);
-});
-
-it('keeps the history route, tool and listeners with Keen installed, beside screens that leave history to Keen', function (): void {
-    $cart = Polycart::create('cart');
-    $cart->add(product());
-
-    // The screens answer as before; history on them is Keen's own section.
-    $this->get(route('atrium.polycart.carts.index'))->assertOk();
-    $this->get(route('atrium.polycart.carts.show', $cart))->assertOk();
-
-    expect(polycartEntries('line.added'))->toHaveCount(1);
-
-    $query = ['subject_type' => $cart->getMorphClass(), 'subject_id' => $cart->id];
-
-    $this->getJson('/polycart/history?'.http_build_query($query))
-        ->assertOk()
-        ->assertJsonFragment(['action' => 'line.added']);
-
-    mcpTool(ListPolycartHistoryTool::class, $query)
-        ->assertOk()
-        ->assertSee('line.added');
 });
 
 it('serves a cart\'s history from the history endpoint and tool', function (): void {

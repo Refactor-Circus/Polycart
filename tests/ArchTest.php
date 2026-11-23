@@ -20,12 +20,11 @@ arch('the package source declares strict types')
     ->expect('RefactorCircus\Polycart')
     ->toUseStrictTypes();
 
-// Atrium is optional: only the dashboard integration may name its classes,
-// so the rest of the package loads without it (tests/WithoutAtrium).
-arch('code outside src/Atrium uses no Atrium class')
+// Polycart is a JSON API and MCP server: Atrium v2 is a client of the API and
+// lives in its own package, so no part of Polycart names an Atrium class.
+arch('the package uses no Atrium class')
     ->expect('RefactorCircus\Polycart')
-    ->not->toUse('RefactorCircus\Atrium')
-    ->ignoring('RefactorCircus\Polycart\Atrium');
+    ->not->toUse('RefactorCircus\Atrium');
 
 arch('actions are final')
     ->expect(Arch::domainNamespaces('RefactorCircus\Polycart', POLYCART_DOMAINS, 'Actions'))

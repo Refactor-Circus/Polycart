@@ -14,13 +14,11 @@ use RefactorCircus\Polycart\Tests\Fixtures\Models\Person;
 use RefactorCircus\Polycart\Tests\Fixtures\Models\Product;
 use RefactorCircus\Polycart\Tests\Fixtures\Models\Team;
 use RefactorCircus\Polycart\Tests\KeenTestCase;
-use RefactorCircus\Polycart\Tests\PennantPlusTestCase;
 use RefactorCircus\Polycart\Tests\RenamedTablesTestCase;
 use RefactorCircus\Polycart\Tests\TestCase;
 
 uses(TestCase::class)->in('Feature', 'Unit');
 uses(CortexTestCase::class)->in('Cortex');
-uses(PennantPlusTestCase::class)->in('PennantPlus');
 uses(KeenTestCase::class)->in('Keen');
 uses(RenamedTablesTestCase::class)->in('Modes/RenamedTables');
 
