@@ -56,6 +56,20 @@ it('has no WithoutAtrium suite in its scripts', function (): void {
         ->and((array) $scripts['test'])->toBe(['@analyse', '@lint:check', '@test:types', '@test:unit']);
 });
 
+it('installs Scramble for development only', function (): void {
+    expect(composerSection('require-dev'))->toHaveKey('dedoc/scramble')
+        ->and(composerSection('require'))->not->toHaveKey('dedoc/scramble');
+});
+
+it('regenerates openapi.json and the client in client:generate', function (): void {
+    $steps = (array) composerSection('scripts')['client:generate'];
+
+    expect($steps)->toHaveCount(3)
+        ->and((string) $steps[0])->toContain('vendor/bin/testbench workbench:openapi')
+        ->and($steps[1])->toBe('npm --prefix client ci')
+        ->and($steps[2])->toBe('npm --prefix client run generate');
+});
+
 it('builds against Cortex and Keen to test their integrations', function (): void {
     expect(composerSection('require-dev'))
         ->toHaveKey('refactor-circus/cortex', '^0.1')

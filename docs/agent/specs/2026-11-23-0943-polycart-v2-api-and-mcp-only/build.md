@@ -101,3 +101,31 @@ Remove Atrium and PennantPlus from composer, workbench and CI (criteria 11, 12, 
 
 - Regenerating the gitignored `composer.local.json` with `bin/composer-local.php` wrote the committed `^0.1` constraints for Keystone, Cortex and Keen. The path repositories offer only `dev-main`, so I set those three back to `dev-main` in the local file, as the job's install had them (the lock's stability flags). No committed file is affected.
 - The workbench JSON API runs on the `api` middleware group, while `SignInWorkbenchUser` is appended to `web`. With `polycart.authorization` on (the default), opening `start` in a browser answers 401. This is raised as a decision; nothing was changed for it.
+
+## Group 4 (salvaged)
+
+OpenAPI export and TypeScript client (criteria 15-20). The build agent ended without a result, so this note covers what the salvage found and finished.
+
+### What I found
+
+There was no index lock and no merge or rebase in progress. Every file in the group was already written but not committed:
+
+- `composer.json` had `dedoc/scramble` `^0.13.55` in `require-dev` (v0.13.55 is installed and supports `illuminate/contracts ^13.0`) and the `client:generate` script.
+- `ExportOpenApiCommand` (`workbench:openapi {path=openapi.json}`) existed. It points the default connection at an in-memory SQLite database, migrates, then calls `scramble:export --path`.
+- `WorkbenchServiceProvider` registered the command and set the Scramble config: `api_path` `polycart`, version `2.0.0`, title `Polycart`, no cache, and a `/polycart` server set by a document transformer. A workbench-only operation transformer names each operation by its route name. It also writes each success body from the resource's own `schema()` (item, list or cursor page), because `$request->persist()` hides the resource from Scramble. `src/` has no Scramble code.
+- The `client/` files, the CI `client` job, `/client export-ignore`, the arch rule, the `ComposerTest` cases and `tests/Feature/OpenApiTest.php` were all there.
+- The committed `openapi.json` was stale. A fresh export changed the 200 description of the two paged operations (`polycart.search.index` and `polycart.carts.index`) from "Array of `CartResource`" to "A cursor page of `CartResource`".
+
+### What I did
+
+- Ran `composer client:generate`. It rewrote `openapi.json`, `client/src/schema.d.ts` and `client/openapi.sha256`, and the stamp matches `shasum -a 256 openapi.json`. A second export to a scratch path was byte-identical, so the export is the same on every run.
+- Ran `npm --prefix client run typecheck`, which passed.
+- Checked `openapi.json`: it has 21 operations, `polycart.stats.show` and `polycart.search.index` among them. The stats data schema has `by_type` and `recent`, and search has a `q` query parameter.
+- `OpenApiTest`: the "no machine-specific value" case chained `->not` twice, which Larastan rejects. I split it into `->and()`.
+- Pint passes on the group's PHP files. PHPStan passes on the workbench files; `tests/` is outside its paths.
+- Committed only the group's listed paths.
+
+### What is left
+
+- 4.6: I did not run the full suite, as the job asked. The gate runs `vendor/bin/pest`.
+- The working tree also has an uncommitted `.gitignore` change (`/client/node_modules`) that the group's original agent made. `.gitignore` is not in the group's file list, so I left it alone. `client/node_modules` must stay out of git: commit that line in a later round, or add it in group 5.

@@ -67,3 +67,40 @@ jobs:
       - name: Test Suite (Windows)
         if: runner.os == 'Windows'
         run: vendor/bin/pest
+
+  # Regenerates openapi.json and the TypeScript client (client/), fails when
+  # either differs from what is committed, then type-checks the client.
+  client:
+    runs-on: ubuntu-latest
+
+    name: Client - P8.5 - Node LTS
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
+        with:
+          php-version: 8.5
+          extensions: dom, curl, libxml, mbstring, zip, fileinfo, sqlite, pdo_sqlite, bcmath, intl
+          ini-values: error_reporting=E_ALL
+          tools: composer:v2
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: lts/*
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Regenerate the OpenAPI document and the client
+        run: composer client:generate
+
+      - name: Check the committed copies are fresh
+        run: git diff --exit-code -- openapi.json client
+
+      - name: Type-check the client
+        run: npm --prefix client run typecheck

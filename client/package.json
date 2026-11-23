@@ -1,0 +1,32 @@
+{
+  "name": "@refactor-circus/polycart-client",
+  "version": "2.0.0",
+  "description": "Typed fetch client for the Polycart JSON API, generated from the package's openapi.json.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "generate": "openapi-typescript ../openapi.json -o src/schema.d.ts && node scripts/stamp.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "openapi-fetch": "0.17.0"
+  },
+  "devDependencies": {
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -23,6 +23,7 @@
         "laravel/mcp": "^1.0.1"
     },
     "require-dev": {
+        "dedoc/scramble": "^0.13.55",
         "larastan/larastan": "^3.13",
         "laravel/pao": "^1.1.5",
         "laravel/pint": "^1.32.1, !=1.32.2",
@@ -90,6 +91,11 @@
             "@lint:check",
             "@test:types",
             "@test:unit"
+        ],
+        "client:generate": [
+            "@php vendor/bin/testbench workbench:openapi openapi.json",
+            "npm --prefix client ci",
+            "npm --prefix client run generate"
         ],
         "clear": [
             "@php vendor/bin/testbench package:purge-skeleton --ansi"

@@ -26,6 +26,12 @@ arch('the package uses no Atrium class')
     ->expect('RefactorCircus\Polycart')
     ->not->toUse('RefactorCircus\Atrium');
 
+// Scramble exports openapi.json from the workbench; it is a dev tool, so the
+// package itself never names it.
+arch('the package uses no Scramble class')
+    ->expect('RefactorCircus\Polycart')
+    ->not->toUse('Dedoc\Scramble');
+
 arch('actions are final')
     ->expect(Arch::domainNamespaces('RefactorCircus\Polycart', POLYCART_DOMAINS, 'Actions'))
     ->classes()
