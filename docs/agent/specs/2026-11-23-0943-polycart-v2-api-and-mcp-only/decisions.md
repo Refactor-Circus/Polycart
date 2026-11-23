@@ -89,3 +89,9 @@
 - Rationale: The user asked to skip spec review and proceed without stopping.
 - Date: 2026-11-23
 - Raised by: write-spec; default chosen because the user asked to proceed without stopping
+
+## D-016: How does the workbench sign its demo user in on the JSON API?
+- Choice: WorkbenchServiceProvider sets polycart.routes.middleware to ['web'] (workbench only), so SignInWorkbenchUser signs the demo user in on API requests; package default stays ['api'].
+- Rationale: Recommended option.
+- Date: 2026-11-23
+- Raised by: factory build; default chosen because the user asked to proceed without stopping
