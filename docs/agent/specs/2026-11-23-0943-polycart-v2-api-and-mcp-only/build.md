@@ -147,3 +147,28 @@ OpenAPI export and TypeScript client (criteria 15-20), retry for task 4.6. Tasks
 ### Deviations
 
 - `.gitignore` is outside the group's file list. Without the line, `client/node_modules` (from `npm --prefix client ci` in `composer client:generate`) shows as untracked and could be committed by mistake.
+
+## Group 5
+
+Docs, CHANGELOG and final gate (criteria 21-24).
+
+### Files
+
+- `tests/Feature/DocsTest.php`: the screen-key cases are replaced. New cases check that the README names `polycart.stats.show`, `polycart.search.index`, `cart-stats`, `polycart.routes.enabled`, `openapi.json`, `createPolycartClient`, `client:generate` and Atrium v2. They also check that it says the API is off by default and behind auth middleware, shows the `by_type`/`recent` payload, and has no Atrium dashboard, screen extensions, operators or `show_all` text. Further cases check that the README, `CLAUDE.md`, `AGENTS.md`, the Boost skill and every `docs/*.md` contain none of `src/Atrium`, `ScreenAccess`, `@polycartCan`, `PolycartSupportFeature`, `polycart.atrium`, `polycart.ui`, `polycart-views`, `polycart-lang`, `CartTypeRow` or `` `atrium` ``, and no screen key quoted as code or a string (the regex leaves route names such as `polycart.carts.index` alone). Finally: `CLAUDE.md` equals `AGENTS.md`; `AGENTS.md` and the skill name `composer client:generate`, `cart-stats` and both route names; and the CHANGELOG's `v2.0.0` section has Breaking and Added entries and names Atrium v2, `polycart.routes.enabled`, both tags, both routes, `cart-stats`, `openapi.json` and the client. The audit-trail case is kept.
+- `README.md`: new "API + MCP" intro (Atrium v2 is the optional UI). The JSON API section gains "Enabling the API" (off by default, Atrium v2 needs it on, behind auth middleware), `/stats` and `/search` rows, "Stats" and "Search" sections with example payloads, and "Who sees what". A new "OpenAPI and the TypeScript client" section covers install, `createPolycartClient` and "Regenerating the client" (`composer client:generate`, the staleness test, the CI `client` job). The MCP list gains `cart-stats`. The Atrium dashboard section is gone (permissions, operators, screen extensions, switching off, the Pennant feature), and so are the views/lang publishing line, `atrium` from the list of sources, the Atrium history pointer and the `src/Atrium` part of "Package layout".
+- `CHANGELOG.md`: the `v2.0.0` section has an upgrade note (Atrium v2 plus `polycart.routes.enabled`, removing the `ui`/`atrium` config, deleting published views and translations), Breaking entries (the removed Atrium UI, config keys, `polycart-views`/`polycart-lang` tags, translations, `@polycartCan`, the dropped suggest/conflict and WithoutAtrium suite, no more `atrium` source) and Added entries (stats, search, `cart-stats`, `openapi.json`, the client and `composer client:generate`). The `Unreleased` link now compares from v2.0.0.
+- `AGENTS.md` (`CLAUDE.md` is a symlink to it, so they are identical): adds an API-plus-MCP intro. Removes the Atrium plugin helper, the "Atrium controllers use `XData::from`" clause, the duplicated batch-lines bullet, the screens/history sentence and the three Atrium bullets. Adds bullets on stats/search/`cart-stats`, on the OpenAPI document and client regeneration (`composer client:generate`, `OpenApiTest` as the staleness test, the CI `client` job, the workbench `RESOURCES` schema list) and on Polycart shipping no UI (ArchTest plus `NoAtriumTest`). `client:generate` is listed under Quick Commands.
+- `resources/boost/skills/polycart-development/SKILL.md`: section 7 is now "Expose carts over the JSON API and MCP". It covers Atrium v2 as the optional UI, the API off by default, stats, search, `cart-stats` in the tool list, OpenAPI and the client, and `composer client:generate`. The Atrium bullets are removed. Section 8 drops `atrium` from the sources and the Atrium history pointer.
+- `docs/sources-and-history.md`: the `atrium` source row and surface are removed, and `http` notes front ends on the API. "In the Atrium dashboard" (with the screen-key table) is replaced by a short "In a front end". The Keen row no longer mentions Atrium screens.
+- `docs/scoping-and-sharing.md`: the "In the Atrium dashboard" section and its TOC entry are removed. The API section says search and stats are scoped to accessible carts.
+- `docs/roles-and-permissions.md`: adds Search and Stats rows to the API/MCP ability table, and replaces the Atrium operators paragraph.
+- `docs/adding-lines.md`: `atrium` is dropped from the `source` values.
+- `tasks.md`: ticked 5.1-5.5.
+
+### Tests
+
+- As the job asked, I did not run the whole suite; the gate runs `composer test` and `vendor/bin/pest` for 5.5. I ran only the new test file: `vendor/bin/pest tests/Feature/DocsTest.php` (24 passed), `vendor/bin/phpstan analyse tests/Feature/DocsTest.php` (no errors) and `vendor/bin/pint --test tests/Feature/DocsTest.php` (passed).
+
+### Deviations
+
+- `docs/events.md` (outside the group's files) still says actions run through "code, the JSON API, MCP, Cortex or the dashboard". It names no Atrium class or key, so I left it; dropping "or the dashboard" would be a one-word nit.

@@ -67,7 +67,7 @@ Where to put your own stages:
 | `cart` | The cart being added to |
 | `type` | The cart's `CartType` |
 | `actor` | The signed-in user, or `null` |
-| `source` | The current surface: `http`, `mcp`, `cortex`, `atrium`, `cli`, `code`, or yours. See [Sources and history](sources-and-history.md). |
+| `source` | The current surface: `http`, `mcp`, `cortex`, `cli`, `code`, or yours. See [Sources and history](sources-and-history.md). |
 
 **Changed by stages:**
 

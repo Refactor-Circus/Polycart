@@ -17,7 +17,6 @@ This guide covers:
 - [Checking access](#checking-access)
 - [Querying](#querying)
 - [Over the JSON API and MCP](#over-the-json-api-and-mcp)
-- [In the Atrium dashboard](#in-the-atrium-dashboard)
 - [Events and exceptions](#events-and-exceptions)
 - [Storage](#storage)
 - [Unscoped carts](#unscoped-carts)
@@ -272,7 +271,7 @@ $cart->sharesScopeWith($otherCart);
 With `polycart.authorization` on, which is the default, every call acts as the authenticated user:
 
 - **Unauthenticated calls** are refused: `401` over HTTP, `Unauthorized.` over MCP.
-- **Listing** returns only carts the user can access.
+- **Listing** returns only carts the user can access, and so do search (`GET /search`) and stats (`GET /stats`, `cart-stats`): the counts by type and the recent carts cover only those carts.
 - **Creating carts:** `POST /carts` and `POST /carts/active` always make the user the owner. Any `owner_type`, `owner_id` or `session_key` in the request is ignored. The user must belong to the given scope.
 - **Every change** goes through the Gate, using the ability listed in [Roles and permissions](roles-and-permissions.md#what-the-api-and-mcp-check).
 
@@ -286,16 +285,6 @@ With `polycart.authorization` on, which is the default, every call acts as the a
 `member_type` is an alias from `polycart.owners` (a person) or `polycart.scopes` (a team or organization). Carts can be created with `scope_type` and `scope_id`, and listed with those two filters to get everything under a scope. Cart responses include `scope_type`, `scope_id`, `boundary_type`, `boundary_id`, `visibility`, and, on `show`, `members`.
 
 Turn `polycart.authorization` off only for trusted server-to-server callers. Route middleware is then the only check, and callers may name any owner from `polycart.owners`.
-
-## In the Atrium dashboard
-
-The cart page shows the cart's chain, such as `Team #3 › Organization #1`, and a **Members** panel where you can:
-
-- change visibility
-- add a person or team with one of the type's roles
-- remove a member
-
-Refusals such as "outside" or "last owner" show as errors on the page. With `polycart.authorization` on, the dashboard applies the same per-user policies as the JSON API: the visibility control needs `share` on the cart, adding a member `create` on `CartMemberModel`, and removing one `delete` on that member. A control the signed-in user may not use is not shown, and the cart list holds only the carts they can access. Operators (`polycart.atrium.show_all`) see every cart and every control.
 
 ## Events and exceptions
 

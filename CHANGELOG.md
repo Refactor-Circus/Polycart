@@ -1,6 +1,35 @@
 # Release Notes
 
-## [Unreleased](https://github.com/Refactor-Circus/Polycart/compare/v0.1.0...main)
+## [Unreleased](https://github.com/Refactor-Circus/Polycart/compare/v2.0.0...main)
+
+## [v2.0.0](https://github.com/Refactor-Circus/Polycart/compare/v0.1.0...v2.0.0) - 2026-11-23
+
+Polycart is now a JSON API and an MCP server, with no UI of its own. Atrium v2 is the optional UI: it reads and changes carts through the JSON API and the new TypeScript client.
+
+### Upgrading
+
+- **For a dashboard, install Atrium v2 and turn the API on.** Atrium v2 brings back the carts, cart types, widgets and search on top of Polycart's JSON API, and needs `polycart.routes.enabled` set to `true`, behind your own auth middleware (`polycart.routes.middleware`, e.g. `['api', 'auth:sanctum']`). `polycart.routes.enabled` still defaults to `false`.
+- Remove the `ui` and `atrium` sections from your published `config/polycart.php`; they are no longer read.
+- Delete any published copies of Polycart's views and translations, `resources/views/vendor/polycart` and `lang/vendor/polycart`: nothing renders them any more.
+- Code that called `RefactorCircus\Polycart\Atrium\*` classes, or used `@polycartCan` in Blade, asks the policies instead: `$user->can('update', $cart)`.
+
+### Breaking
+
+- **The Atrium UI is removed.** `src/Atrium` is gone with everything in it: the Atrium plugin and its Carts and Cart types pages, the *Carts by type* and *Recent carts* widgets, the Atrium search source, the screen extensions screens (`polycart.carts`, `polycart.cart`, `polycart.types`) and `CartTypeRow`, `ScreenAccess`, `Badges`, the dashboard operators, and `PolycartSupportFeature`. `PolycartServiceProvider` no longer registers an Atrium plugin. The pages, widgets, search, operators and the Pennant switch now belong to Atrium v2.
+- **Config keys removed:** `polycart.ui` (`ui.enabled`) and `polycart.atrium` (`atrium.show_all`, `atrium.features`).
+- **The `polycart-views` and `polycart-lang` publish tags are removed**, and the `polycart` tag publishes only the config and the migrations. Polycart no longer loads a `polycart::` view namespace.
+- **The translations are removed** (`lang/`), with the `polycart::` translation namespace; every string in them belonged to the Atrium pages.
+- The `@polycartCan` Blade conditional is removed.
+- `refactor-circus/atrium` and `refactor-circus/pennantplus` are no longer suggested, and the `conflict` on old Atrium versions is gone. `composer test:without-atrium` and the `WithoutAtrium` suite are removed: Atrium is no longer installed at all, so every test runs without it.
+- New carts no longer record `atrium` as their `source`: a front end on the JSON API, Atrium v2 among them, records `http`. Carts stored with `atrium` keep it.
+
+### Added
+
+- `GET {prefix}/stats`, named `polycart.stats.show`: `{"data": {"by_type": [{"type", "count"}, ...], "recent": [...]}}`. `by_type` counts the caller's accessible, unexpired carts for every registered type, in registry order and zero-filled; `recent` holds the 5 most recently updated carts the caller can access, with `lines_count`. Backed by the new `ShowCartStatsAction` (`CartStatsShowingActionEvent` / `CartStatsShownActionEvent`), `CartStats` and `CartStatsResource`.
+- `GET {prefix}/search?q=`, named `polycart.search.index`: the carts the caller can access whose label contains `q` or whose id starts with it, in the same shape and order as `polycart.carts.index` (newest first, cursor paged with `per_page` and `cursor`). A missing, empty or over-long `q` answers `422`. Atrium v1's search ordered by most recently updated; this one orders newest-created first.
+- The `cart-stats` MCP tool, returning the stats payload under `data`, offered to Cortex like every other tool.
+- `openapi.json`, a committed OpenAPI document of every `polycart.*` route, exported by the workbench command `php vendor/bin/testbench workbench:openapi` (dedoc/scramble, dev only).
+- `client/`, the TypeScript client `@refactor-circus/polycart-client` (v2.0.0): `createPolycartClient(options)` around openapi-fetch, typed from `openapi.json` and shipped as TypeScript source. Install it as a git dependency on the `v2.0.0` tag. `composer client:generate` regenerates `openapi.json` and the client; `tests/Feature/OpenApiTest.php` and a CI `client` job fail when either is stale.
 
 ## [v0.1.0](https://github.com/Refactor-Circus/Polycart/commits/v0.1.0) - 2026-10-30
 

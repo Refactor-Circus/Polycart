@@ -229,6 +229,8 @@ With `polycart.authorization` on, which is the default, each call is checked aga
 | --- | --- | --- | --- |
 | List types | `GET /types` | `list-cart-types` | `viewAny` on `CartModel` |
 | List carts | `GET /carts` | `list-carts` | `viewAny` on `CartModel`. Only accessible carts are returned. |
+| Search carts | `GET /search?q=` (`polycart.search.index`) | `list-carts` with `search` | `viewAny` on `CartModel`. Only accessible carts are returned. |
+| Stats | `GET /stats` (`polycart.stats.show`) | `cart-stats` | `viewAny` on `CartModel`. Counts and recent carts cover only accessible carts. |
 | Create or get active cart | `POST /carts`, `POST /carts/active` | `create-cart`, `active-cart` | `create` on `CartModel`. The user becomes the owner. `update` on the parent when `parent_id` is given. |
 | Show a cart | `GET /carts/{cart}` | `show-cart` | `view` |
 | Update, clear | `PATCH /carts/{cart}`, `POST .../clear` | `update-cart`, `clear-cart` | `update` |
@@ -243,7 +245,7 @@ With `polycart.authorization` on, which is the default, each call is checked aga
 
 A failed check returns `403` over HTTP (`401` for a caller who is not signed in) and `Unauthorized.` over MCP. Turn `polycart.authorization` off only for trusted server-to-server callers.
 
-The Atrium dashboard asks the same questions, with one exception: users made operators by `polycart.atrium.show_all` (`true`, or a Gate ability's name) see every cart there and may take every action on it. The API and MCP never treat anyone as an operator.
+A front end built on the JSON API, such as Atrium v2, gets exactly these answers for its signed-in user: Polycart grants no one more than their role on each cart allows, on any surface.
 
 ## Policies
 
