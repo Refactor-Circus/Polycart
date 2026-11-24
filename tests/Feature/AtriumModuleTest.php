@@ -140,7 +140,7 @@ it('pins the Atrium SDK as a development dependency of the module only, with not
     expect($package['name'])->toBe('@refactor-circus/polycart-atrium')
         ->and($package['private'])->toBeTrue()
         ->and($package)->not->toHaveKey('dependencies')
-        ->and($package['devDependencies']['@refactor-circus/atrium'])->toBe('github:refactor-circus/atrium#009b5bc503cb6c15c5d1a8ffce0c4bdca5bf7c9d&path:ui/sdk')
+        ->and($package['devDependencies']['@refactor-circus/atrium'])->toBe('github:refactor-circus/atrium#ebe506887d1e0a452972d4c176dc8169cd7bd69d&path:ui/sdk')
         ->and($package['devDependencies'])->not->toHaveKeys(['@types/sortablejs', 'unplugin-vue-components'])
         ->and(atriumModulePath('atrium/pnpm-lock.yaml'))->toBeFile();
 });
