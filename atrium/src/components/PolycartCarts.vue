@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { TableColumn } from '@nuxt/ui'
+import type { TableColumn } from '@refactor-circus/atrium/ui'
 import { AtriumIntegrationError } from '@refactor-circus/atrium'
 import PolycartCartStatus from './PolycartCartStatus.vue'
 import {
@@ -36,9 +36,6 @@ interface Filters {
 
 const FILTERS = ['type', 'status', 'source', 'search'] as const
 
-/** The type filter's "all types" choice: a select item's value cannot be empty. */
-const ALL_TYPES = '*'
-
 const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
@@ -68,17 +65,7 @@ const errors = ref<string[]>([])
 
 const dates = computed(() => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }))
 
-const typeItems = computed(() => [
-  { value: ALL_TYPES, label: t('polycart.carts.all_types') },
-  ...types.value.map(type => ({ value: type, label: type }))
-])
-
-const typeChoice = computed({
-  get: () => filters.type === '' ? ALL_TYPES : filters.type,
-  set: (value: string) => {
-    filters.type = value === ALL_TYPES ? '' : value
-  }
-})
+const typeItems = computed(() => types.value.map(type => ({ value: type, label: type })))
 
 const columns = computed<TableColumn<PolycartCart>[]>(() => [
   { id: 'cart', header: t('polycart.carts.cart') },
@@ -86,7 +73,7 @@ const columns = computed<TableColumn<PolycartCart>[]>(() => [
   { id: 'status', header: t('polycart.carts.status') },
   { id: 'owner', header: t('polycart.carts.owner') },
   { id: 'source', header: t('polycart.carts.source') },
-  { id: 'lines', header: t('polycart.carts.lines'), meta: { class: { th: 'text-right', td: 'text-right tabular-nums' } } },
+  { id: 'lines', header: t('polycart.carts.lines'), meta: { class: { th: 'text-right', td: 'text-right' } } },
   { id: 'updated', header: t('polycart.carts.updated'), meta: { class: { td: 'text-muted' } } },
   { id: 'expires', header: t('polycart.carts.expires') }
 ])
@@ -189,7 +176,7 @@ void Promise.all([loadTypes(), load()])
     <template v-else>
       <UForm :state="filters" class="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-5" data-testid="polycart-filters" @submit="applyFilters">
         <UFormField :label="t('polycart.carts.type')" name="type">
-          <USelect v-model="typeChoice" :items="typeItems" class="w-full" data-testid="polycart-filter-type" />
+          <AtriumSelect v-model="filters.type" :items="typeItems" :blank="t('polycart.carts.all_types')" class="w-full" data-testid="polycart-filter-type" />
         </UFormField>
         <UFormField :label="t('polycart.carts.status')" name="status">
           <UInput v-model="filters.status" class="w-full" data-testid="polycart-filter-status" />

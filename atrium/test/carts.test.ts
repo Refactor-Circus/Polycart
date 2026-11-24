@@ -3,7 +3,8 @@ import type { VueWrapper } from '@vue/test-utils'
 import CartsPage from '../src/pages/carts/index.vue'
 import { settle } from '@refactor-circus/atrium/testing'
 import { mockPackageApi, mountIntegration, reply, resetPackageApis, type PackageCall, type PackageRoutes } from '@refactor-circus/atrium/testing'
-import { cart, childCart, control, cursorPage, guestCart, orderType, quoteType, requests, screenPayload, select, selected, selectItems, tableRows } from './data'
+import { cart, childCart, cursorPage, guestCart, orderType, quoteType, requests, screenPayload } from './data'
+import { chooseOption, findInput, selectItems, selectValue, tableRows } from '@refactor-circus/atrium/testing'
 import { clearAtriumData, mockAtriumApi, useRouter } from '@refactor-circus/atrium/testing'
 
 /*
@@ -100,18 +101,18 @@ describe('filters', () => {
     const wrapper = await mountPage()
 
     const options = selectItems(wrapper, 'polycart-filter-type').map(option => [option.value, option.label])
-    // "All types" stands for no filter: a select item's value cannot be empty.
-    expect(options).toEqual([['*', 'All types'], ['order', 'order'], ['quote', 'quote']])
+    // "All types" is the select's blank item: it holds '' and sends no type.
+    expect(options).toEqual([['', 'All types'], ['order', 'order'], ['quote', 'quote']])
   })
 
   it('sends the type, status, source and search filters as carts.index query parameters', async () => {
     const calls = polycart()
     const wrapper = await mountPage()
 
-    await select(wrapper, 'polycart-filter-type').setValue('order')
-    await control(wrapper, 'polycart-filter-status').setValue('open')
-    await control(wrapper, 'polycart-filter-source').setValue('api')
-    await control(wrapper, 'polycart-filter-search').setValue('spring')
+    await chooseOption(wrapper, 'polycart-filter-type', 'order')
+    await findInput(wrapper, 'polycart-filter-status').setValue('open')
+    await findInput(wrapper, 'polycart-filter-source').setValue('api')
+    await findInput(wrapper, 'polycart-filter-search').setValue('spring')
     await wrapper.find('[data-testid="polycart-filters"]').trigger('submit')
     await settle()
 
@@ -126,7 +127,19 @@ describe('filters', () => {
     const wrapper = await mountPage({ type: 'quote', unexpired: '1' })
 
     expect(requests(calls, 'GET', '/carts')[0]!.query).toEqual({ type: 'quote', unexpired: '1' })
-    expect(selected(wrapper, 'polycart-filter-type')).toBe('quote')
+    expect(selectValue(wrapper, 'polycart-filter-type')).toBe('quote')
+  })
+
+  it('sends no type once "All types" is chosen again', async () => {
+    const calls = polycart()
+    const wrapper = await mountPage({ type: 'quote' })
+
+    await chooseOption(wrapper, 'polycart-filter-type', '')
+    await wrapper.find('[data-testid="polycart-filters"]').trigger('submit')
+    await settle()
+
+    expect(selectValue(wrapper, 'polycart-filter-type')).toBe('')
+    expect(requests(calls, 'GET', '/carts').at(-1)!.query).toEqual({})
   })
 
   it('resets every filter', async () => {

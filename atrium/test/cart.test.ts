@@ -4,7 +4,8 @@ import CartPage from '../src/pages/carts/[cart].vue'
 import PolycartCart from '../src/components/PolycartCart.vue'
 import { settle } from '@refactor-circus/atrium/testing'
 import { integrationEntry, integrationShell, mockPackageApi, mountIntegration, reply, resetPackageApis, useShell, type PackageCall, type PackageRoutes } from '@refactor-circus/atrium/testing'
-import { CART_ID, CHILD_ID, PARENT_ID, cart, childCart, control, cursorPage, member, orderType, productLine, quoteType, requests, screenPayload, select, selected, selectValues, tableRows } from './data'
+import { CART_ID, CHILD_ID, PARENT_ID, cart, childCart, cursorPage, member, orderType, productLine, quoteType, requests, screenPayload } from './data'
+import { chooseOption, findInput, selectValue, selectValues, tableRows } from '@refactor-circus/atrium/testing'
 import { clearAtriumData, mockAtriumApi, useRouter } from '@refactor-circus/atrium/testing'
 
 /*
@@ -165,8 +166,8 @@ describe('cart actions', () => {
     const calls = polycart()
     const wrapper = await mountCart()
 
-    await control(wrapper, 'polycart-details-label').setValue('Autumn order')
-    await control(wrapper, 'polycart-details-meta').setValue('{"note": "rush"}')
+    await findInput(wrapper, 'polycart-details-label').setValue('Autumn order')
+    await findInput(wrapper, 'polycart-details-meta').setValue('{"note": "rush"}')
     await submit(wrapper, 'polycart-details-form')
 
     const [update] = requests(calls, 'PATCH', '/carts/{cart}')
@@ -180,7 +181,7 @@ describe('cart actions', () => {
     const calls = polycart()
     const wrapper = await mountCart()
 
-    await control(wrapper, 'polycart-details-meta').setValue('{not json')
+    await findInput(wrapper, 'polycart-details-meta').setValue('{not json')
     await submit(wrapper, 'polycart-details-form')
 
     expect(requests(calls, 'PATCH', '/carts/{cart}')).toEqual([])
@@ -244,7 +245,7 @@ describe('cart actions', () => {
     const calls = polycart()
     const wrapper = await mountCart()
 
-    await select(wrapper, 'polycart-transition-status').setValue('cancelled')
+    await chooseOption(wrapper, 'polycart-transition-status', 'cancelled')
     await submit(wrapper, 'polycart-transition-form')
 
     expect(requests(calls, 'POST', '/carts/{cart}/status').map(call => [call.path, call.body])).toEqual([[`/carts/${CART_ID}/status`, { status: 'cancelled' }]])
@@ -285,9 +286,9 @@ describe('cart actions', () => {
     const calls = polycart()
     const wrapper = await mountCart()
 
-    expect(selected(wrapper, 'polycart-visibility')).toBe('private')
+    expect(selectValue(wrapper, 'polycart-visibility')).toBe('private')
 
-    await select(wrapper, 'polycart-visibility').setValue('boundary')
+    await chooseOption(wrapper, 'polycart-visibility', 'boundary')
     await submit(wrapper, 'polycart-visibility-form')
 
     expect(requests(calls, 'PUT', '/carts/{cart}/visibility').map(call => [call.path, call.body])).toEqual([[`/carts/${CART_ID}/visibility`, { visibility: 'boundary' }]])
@@ -344,9 +345,9 @@ describe('member actions', () => {
     const calls = polycart()
     const wrapper = await mountCart()
 
-    await control(wrapper, 'polycart-share-type').setValue('user')
-    await control(wrapper, 'polycart-share-id').setValue('12')
-    await control(wrapper, 'polycart-share-role').setValue('viewer')
+    await findInput(wrapper, 'polycart-share-type').setValue('user')
+    await findInput(wrapper, 'polycart-share-id').setValue('12')
+    await findInput(wrapper, 'polycart-share-role').setValue('viewer')
     await submit(wrapper, 'polycart-share-form')
 
     expect(requests(calls, 'POST', '/carts/{cart}/members').map(call => [call.path, call.body])).toEqual([

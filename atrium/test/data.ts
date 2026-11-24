@@ -1,8 +1,6 @@
-import type { DOMWrapper, VueWrapper } from '@vue/test-utils'
 import type { components } from '../../client/src/schema'
 import type { AtriumIntegrationScreenData } from '@refactor-circus/atrium'
 import type { PackageCall } from '@refactor-circus/atrium/testing'
-import { USelect } from '@refactor-circus/atrium/ui'
 
 /*
  * Polycart payloads for the screen and widget suites, each typed with
@@ -176,48 +174,4 @@ export function screenPayload(key: string, kind: 'list' | 'detail', path: string
 /** The calls `calls` holds for a method and a route template. */
 export function requests(calls: readonly PackageCall[], method: string, route: string): PackageCall[] {
   return calls.filter(call => call.method === method && call.route === route)
-}
-
-/** The form control under a test id: the element itself, or the one Nuxt UI wraps. */
-export function control(wrapper: VueWrapper, testid: string): DOMWrapper<HTMLInputElement> {
-  const found = wrapper.find<HTMLInputElement>(`[data-testid="${testid}"]`)
-
-  return found.element.matches('input, select, textarea') ? found : found.find<HTMLInputElement>('input, select, textarea')
-}
-
-/** The data rows of the <UTable> under a test id (not its empty-state row). */
-export function tableRows(wrapper: VueWrapper | DOMWrapper<Element>, testid: string): DOMWrapper<HTMLTableRowElement>[] {
-  return wrapper.findAll<HTMLTableRowElement>(`[data-testid="${testid}"] tbody tr[data-selectable]`)
-}
-
-/**
- * The <USelect> whose trigger carries a test id. Its list renders in a
- * portal only while open, so a test reads its `items` and `modelValue` and
- * picks a value with `setValue()`, as a choice in the list would.
- */
-export function select(wrapper: VueWrapper, testid: string): VueWrapper {
-  const found = wrapper.findAllComponents(USelect).find(candidate => candidate.find(`[data-testid="${testid}"]`).exists())
-
-  if (!found) {
-    throw new Error(`No <USelect> with data-testid="${testid}".`)
-  }
-
-  return found as unknown as VueWrapper
-}
-
-/** What a <USelect> offers, as `{ value, label }` (a plain value stands for both). */
-export function selectItems(wrapper: VueWrapper, testid: string): { value: unknown, label: unknown }[] {
-  const items = (select(wrapper, testid).props() as { items?: unknown[] }).items ?? []
-
-  return items.map(item => typeof item === 'object' && item !== null ? item as { value: unknown, label: unknown } : { value: item, label: item })
-}
-
-/** The values a <USelect> offers. */
-export function selectValues(wrapper: VueWrapper, testid: string): unknown[] {
-  return selectItems(wrapper, testid).map(item => item.value)
-}
-
-/** The value a <USelect> shows as chosen. */
-export function selected(wrapper: VueWrapper, testid: string): unknown {
-  return (select(wrapper, testid).props() as { modelValue?: unknown }).modelValue
 }

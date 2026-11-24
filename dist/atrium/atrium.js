@@ -248,12 +248,12 @@ var V = { polycart: {
 	{
 		path: "/polycart/carts/:cart",
 		name: "polycart-carts-cart",
-		component: () => import("./chunks/_cart_-Cx0WTvu5.js")
+		component: () => import("./chunks/_cart_-BYfLo4mJ.js")
 	},
 	{
 		path: "/polycart/carts",
 		name: "polycart-carts",
-		component: () => import("./chunks/carts-bFWSxWOt.js")
+		component: () => import("./chunks/carts-bRIAoEov.js")
 	},
 	{
 		path: "/polycart/types",

@@ -3,7 +3,8 @@ import type { VueWrapper } from '@vue/test-utils'
 import TypesPage from '../src/pages/types.vue'
 import { settle } from '@refactor-circus/atrium/testing'
 import { mockPackageApi, mountIntegration, reply, resetPackageApis, type PackageCall, type PackageRoutes } from '@refactor-circus/atrium/testing'
-import { orderType, quoteType, requests, screenPayload, tableRows } from './data'
+import { orderType, quoteType, requests, screenPayload } from './data'
+import { tableRows } from '@refactor-circus/atrium/testing'
 import { clearAtriumData, mockAtriumApi } from '@refactor-circus/atrium/testing'
 
 /*

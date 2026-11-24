@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { TableColumn } from '@nuxt/ui'
+import type { AtriumDetailsItem } from '@refactor-circus/atrium'
+import type { TableColumn } from '@refactor-circus/atrium/ui'
 import PolycartCartStatus from './PolycartCartStatus.vue'
 import {
   POLYCART_VISIBILITIES,
@@ -82,9 +83,9 @@ const visibilityItems = computed(() => POLYCART_VISIBILITIES.map(option => ({ va
 
 const lineColumns = computed<TableColumn<PolycartLine>[]>(() => [
   { id: 'item', header: t('polycart.cart.item') },
-  { id: 'unit_price', header: t('polycart.cart.unit_price'), meta: { class: { th: 'text-right', td: 'text-right tabular-nums' } } },
+  { id: 'unit_price', header: t('polycart.cart.unit_price'), meta: { class: { th: 'text-right', td: 'text-right' } } },
   { id: 'quantity', header: t('polycart.cart.quantity') },
-  { id: 'total', header: t('polycart.cart.total'), meta: { class: { th: 'text-right', td: 'text-right tabular-nums' } } },
+  { id: 'total', header: t('polycart.cart.total'), meta: { class: { th: 'text-right', td: 'text-right' } } },
   { id: 'remove', header: () => h('span', { class: 'sr-only' }, t('polycart.cart.remove')), meta: { class: { td: 'text-right' } } }
 ])
 
@@ -294,6 +295,19 @@ function dated(at: string | null): string {
   return at === null ? '' : dates.value.format(new Date(at))
 }
 
+/** The cart's facts; the scope and the parent fill their own slots. */
+function detailItems(shown: PolycartCart): AtriumDetailsItem[] {
+  return [
+    { key: 'id', label: t('polycart.cart.cart_id'), value: shown.id, mono: true },
+    { key: 'owner', label: t('polycart.cart.owner'), value: polycartOwner(shown) ?? t('polycart.guest') },
+    { key: 'source', label: t('polycart.cart.source'), value: shown.source },
+    { key: 'expires', label: t('polycart.cart.expires'), value: shown.expires_at ? dated(shown.expires_at) : t('polycart.never') },
+    { key: 'updated', label: t('polycart.cart.updated_at'), value: dated(shown.updated_at) },
+    { key: 'scope', label: t('polycart.cart.scope') },
+    ...(shown.parent_id ? [{ key: 'parent', label: t('polycart.cart.parent') }] : [])
+  ]
+}
+
 /** What a line buys: `Product #12`, or a custom line's description. */
 function item(line: PolycartLine): string {
   if (line.purchasable_type !== null) {
@@ -325,9 +339,9 @@ void Promise.all([client ? loadTypes(client) : null, load()])
     <!-- The loaded cart, as a loop variable so it stays non-null in every slot. -->
     <template v-else>
       <template v-for="shown in shownCart" :key="shown.id">
-        <UPageHeader :ui="{ root: 'border-none py-0', title: 'truncate' }">
+        <AtriumPageHeader :title="polycartCartTitle(shown)">
           <template #title>
-            <span data-testid="polycart-cart-title">{{ polycartCartTitle(shown) }}</span>
+            <span class="truncate" data-testid="polycart-cart-title">{{ polycartCartTitle(shown) }}</span>
           </template>
           <template #description>
             <span class="flex flex-wrap items-center gap-2">
@@ -335,29 +349,27 @@ void Promise.all([client ? loadTypes(client) : null, load()])
               <PolycartCartStatus v-if="shown.status" :status="shown.status" :expired="polycartExpired(shown)" />
             </span>
           </template>
-          <template #links>
-            <UButton
-              size="sm"
-              color="neutral"
-              variant="outline"
-              icon="i-lucide-archive-x"
-              :label="t('polycart.cart.clear')"
-              :loading="action.busy.value"
-              data-testid="polycart-clear"
-              @click="clear"
-            />
-            <UButton
-              size="sm"
-              color="error"
-              variant="outline"
-              icon="i-lucide-trash"
-              :label="t('polycart.cart.delete')"
-              :loading="action.busy.value"
-              data-testid="polycart-delete"
-              @click="destroy"
-            />
-          </template>
-        </UPageHeader>
+          <UButton
+            size="sm"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-archive-x"
+            :label="t('polycart.cart.clear')"
+            :loading="action.busy.value"
+            data-testid="polycart-clear"
+            @click="clear"
+          />
+          <UButton
+            size="sm"
+            color="error"
+            variant="outline"
+            icon="i-lucide-trash"
+            :label="t('polycart.cart.delete')"
+            :loading="action.busy.value"
+            data-testid="polycart-delete"
+            @click="destroy"
+          />
+        </AtriumPageHeader>
 
         <UAlert v-if="notice" color="success" variant="subtle" icon="i-lucide-check" :title="notice" data-testid="polycart-notice" />
         <AtriumNoAccess v-if="action.forbidden.value" compact :description="t('polycart.cart.forbidden')" />
@@ -371,29 +383,15 @@ void Promise.all([client ? loadTypes(client) : null, load()])
         </div>
 
         <UCard>
-          <dl class="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[auto_1fr]">
-            <dt class="text-muted">{{ t('polycart.cart.cart_id') }}</dt>
-            <dd class="font-mono">{{ shown.id }}</dd>
-            <dt class="text-muted">{{ t('polycart.cart.owner') }}</dt>
-            <dd>{{ polycartOwner(shown) ?? t('polycart.guest') }}</dd>
-            <dt class="text-muted">{{ t('polycart.cart.source') }}</dt>
-            <dd>{{ shown.source ?? '—' }}</dd>
-            <dt class="text-muted">{{ t('polycart.cart.expires') }}</dt>
-            <dd>{{ shown.expires_at ? dated(shown.expires_at) : t('polycart.never') }}</dd>
-            <dt class="text-muted">{{ t('polycart.cart.updated_at') }}</dt>
-            <dd>{{ dated(shown.updated_at) }}</dd>
-            <dt class="text-muted">{{ t('polycart.cart.scope') }}</dt>
-            <dd>
+          <AtriumDetails :items="detailItems(shown)" data-testid="polycart-details">
+            <template #scope>
               <UBadge v-if="shown.scope_type" color="neutral" variant="subtle" :label="`${polycartBasename(shown.scope_type)} #${shown.scope_id ?? ''}`" />
               <span v-else class="text-muted">{{ t('polycart.cart.unscoped') }}</span>
-            </dd>
-            <template v-if="shown.parent_id">
-              <dt class="text-muted">{{ t('polycart.cart.parent') }}</dt>
-              <dd>
-                <ULink :to="polycartCartPath(shown.parent_id)" class="font-mono underline-offset-2 hover:underline" data-testid="polycart-parent-link">{{ shown.parent_id }}</ULink>
-              </dd>
             </template>
-          </dl>
+            <template #parent>
+              <ULink :to="polycartCartPath(shown.parent_id ?? '')" class="atrium-mono underline-offset-2 hover:underline" data-testid="polycart-parent-link">{{ shown.parent_id }}</ULink>
+            </template>
+          </AtriumDetails>
         </UCard>
 
         <UCard v-if="!unknownType && (nextStatuses.length > 0 || conversions.length > 0)" data-testid="polycart-lifecycle">
