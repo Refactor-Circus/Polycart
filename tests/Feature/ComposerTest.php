@@ -45,9 +45,10 @@ it('has no repository for Atrium or PennantPlus', function (): void {
         ->and(preg_grep('/atrium|pennantplus/i', $urls))->toBe([]);
 });
 
-it('declares only its JavaScript Atrium module in extra, with no PHP plugin', function (): void {
+it('declares only its JavaScript Atrium module and integration manifest in extra, with no PHP plugin', function (): void {
     expect(composerSection('extra')['atrium'] ?? null)->toBe([
         'key' => 'polycart',
+        'integration' => 'dist/atrium/integration.json',
         'scripts' => ['dist/atrium/atrium.js'],
         'styles' => ['dist/atrium/atrium.css'],
     ])

@@ -91,6 +91,24 @@ it('declares the built script and stylesheet in extra.atrium, and both are commi
     }
 });
 
+it('declares its Atrium integration in the committed manifest the build writes', function (): void {
+    /** @var array{extra: array{atrium: array{integration?: string}}} $composer */
+    $composer = json_decode((string) file_get_contents(atriumModulePath('composer.json')), true, flags: JSON_THROW_ON_ERROR);
+
+    $integration = $composer['extra']['atrium']['integration'] ?? null;
+
+    expect($integration)->toBe('dist/atrium/integration.json')
+        ->and(atriumModulePath((string) $integration))->toBeFile();
+
+    /** @var array{key: string, version: int, screens: list<array{key: string}>} $manifest */
+    $manifest = json_decode((string) file_get_contents(atriumModulePath((string) $integration)), true, flags: JSON_THROW_ON_ERROR);
+
+    expect($manifest['key'])->toBe('polycart')
+        ->and($manifest['version'])->toBe(1)
+        ->and(array_column($manifest['screens'], 'key'))->toBe(['polycart.carts', 'polycart.cart', 'polycart.types'])
+        ->and($manifest)->toBe(json_decode((string) file_get_contents(atriumModulePath('atrium/src/integration.json')), true, flags: JSON_THROW_ON_ERROR));
+});
+
 it('was built for the polycart key and Atrium\'s shared API 1.0', function (): void {
     $build = atriumModuleBuild();
 
@@ -122,7 +140,7 @@ it('pins the Atrium SDK as a development dependency of the module only, with not
     expect($package['name'])->toBe('@refactor-circus/polycart-atrium')
         ->and($package['private'])->toBeTrue()
         ->and($package)->not->toHaveKey('dependencies')
-        ->and($package['devDependencies']['@refactor-circus/atrium'])->toMatch('/^github:refactor-circus\/atrium#[0-9a-zA-Z.]+&path:ui\/sdk$/')
+        ->and($package['devDependencies']['@refactor-circus/atrium'])->toBe('github:refactor-circus/atrium#009b5bc503cb6c15c5d1a8ffce0c4bdca5bf7c9d&path:ui/sdk')
         ->and($package['devDependencies'])->not->toHaveKeys(['@types/sortablejs', 'unplugin-vue-components'])
         ->and(atriumModulePath('atrium/pnpm-lock.yaml'))->toBeFile();
 });

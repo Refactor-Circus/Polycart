@@ -484,11 +484,12 @@ It exports `openapi.json` with `php vendor/bin/testbench workbench:openapi opena
 
 Polycart ships its front end for [Atrium v2](https://github.com/Refactor-Circus/Atrium) as an Atrium module: the carts, cart and cart types pages, the *Carts by type* and *Recent carts* dashboard widgets and the carts search source. It is JavaScript only, with no PHP: Polycart neither requires nor suggests Atrium, and nothing under `src/` names it.
 
-- `composer.json` declares the module under `extra.atrium` (key `polycart`, script `dist/atrium/atrium.js`, stylesheet `dist/atrium/atrium.css`). When Atrium is installed, it discovers the module and injects the script into its page while the Polycart integration is active; without Atrium nothing reads it.
+- `composer.json` declares the module under `extra.atrium` (key `polycart`, integration manifest `dist/atrium/integration.json`, script `dist/atrium/atrium.js`, stylesheet `dist/atrium/atrium.css`). When Atrium is installed, it discovers the module and injects the script into its page while the Polycart integration is active; without Atrium nothing reads it.
+- `atrium/src/integration.json` is the module's integration manifest: what Polycart adds to Atrium's shell, as static JSON with no PHP. It declares the Pennant feature the integration needs, the *Carts* and *Cart types* navigation items, the two dashboard widgets, the carts search source and the carts, cart and cart types screens. The build validates it against Atrium's schema and writes it to `dist/atrium/integration.json`, which `extra.atrium.integration` points at; Atrium reads it there when it registers the integration. To change what Polycart declares, edit `atrium/src/integration.json` and rebuild (below).
 - `dist/atrium/` holds the built module and is committed, so hosts never run Node. Its sources, in `atrium/` (Vue, typed by `client/src/schema.d.ts`), are left out of the Composer dist.
 - The module calls the JSON API, so it needs `polycart.routes.enabled` on, behind your auth middleware.
 
-To rebuild it after changing `atrium/` or the client, with pnpm 10 and Node 20 or later:
+To rebuild it after changing `atrium/` (the manifest included) or the client, with pnpm 10 and Node 20 or later:
 
 ```bash
 cd atrium

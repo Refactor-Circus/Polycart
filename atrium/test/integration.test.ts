@@ -5,9 +5,8 @@ import polycart, { screens } from '../src/atrium'
 import PolycartCartsByType from '../src/components/PolycartCartsByType.vue'
 import PolycartRecentCarts from '../src/components/PolycartRecentCarts.vue'
 import { searchPolycartCarts } from '../src/components/search'
-import fixtureJson from '@refactor-circus/atrium/fixtures/integrations/polycart.json'
 import locale from '../src/locales/polycart.en.json'
-import { withSetup } from '@refactor-circus/atrium/testing'
+import { expectIntegrationManifest, withSetup } from '@refactor-circus/atrium/testing'
 import { hasI18nKey, missingI18nKeys } from '@refactor-circus/atrium/testing'
 import { useRouter } from '@refactor-circus/atrium/testing'
 
@@ -16,57 +15,63 @@ import { useRouter } from '@refactor-circus/atrium/testing'
 const here = import.meta.url
 
 /*
- * The Polycart integration's layer side (AC 49, 53, 59, 60, 62): every
- * screen and nav path PHP declares (`fixtures/integrations/polycart.json`,
- * written by `PolycartIntegrationTest`) has its page; `src/atrium.ts` maps each
- * screen key to that page's route and registers a component for every widget
- * and a resolver for every search source the fixture lists; and every `t()`
- * key it uses exists.
+ * Polycart's integration manifest (`src/integration.json`, D-090) and the
+ * module that renders it (AC 49, 53, 59, 60, 62): the manifest passes the
+ * checks Atrium makes when it registers it; every screen and nav path it
+ * declares has its page; `src/atrium.ts` maps each screen key to that page's
+ * route and registers a component for every widget and a resolver for every
+ * search source it lists; and every `t()` key the module uses exists.
  */
 
 interface Declarations {
   key: string
-  navigation: { link: { path: string, external: boolean } | null }[]
-  widgets: { key: string, component: string, data: Record<string, unknown> }[]
-  settings: unknown
-  search_sources: { key: string, integration: string }[]
-  screens: { key: string, kind: string, path: string, subject_type: string | null }[]
+  version: number
+  features: string[]
+  navigation: { path: string }[]
+  widgets: { key: string, component?: string }[]
+  settings?: unknown
+  search_sources: { key: string }[]
+  screens: { key: string, kind: string, path: string, subject_type?: string }[]
+  hooks?: { tabs?: Record<string, unknown>, sections?: Record<string, unknown> }[]
 }
 
-const fixture = fixtureJson as unknown as Declarations
+const manifest = expectIntegrationManifest('src/integration.json', 'polycart') as unknown as Declarations
 
 const indexSource = readFileSync(fileURLToPath(new URL('../src/atrium.ts', here)), 'utf8')
 
-/** A Nuxt route path as PHP declares it: `:param()` read as `:param`. */
+/** A route's path as the manifest writes it: `:param()` read as `:param`. */
 function declaredPath(path: string): string {
   return path.replace(/\(\)/g, '')
 }
 
-describe('the polycart fixture', () => {
+describe('the polycart manifest', () => {
   it('declares the three screens of AC 59, two widgets and one search source', () => {
-    expect(fixture.key).toBe('polycart')
-    expect(fixture.screens.map(screen => [screen.key, screen.kind, screen.path])).toEqual([
+    expect(manifest.key).toBe('polycart')
+    expect(manifest.version).toBe(1)
+    expect(manifest.features).toEqual(['polycart.atrium'])
+    expect(manifest.screens.map(screen => [screen.key, screen.kind, screen.path])).toEqual([
       ['polycart.carts', 'list', '/polycart/carts'],
       ['polycart.cart', 'detail', '/polycart/carts/:cart'],
       ['polycart.types', 'list', '/polycart/types']
     ])
-    expect(fixture.navigation.map(item => item.link?.path)).toEqual(['/polycart/carts', '/polycart/types'])
-    expect(fixture.widgets.map(widget => [widget.key, widget.component, widget.data])).toEqual([
-      ['polycart.carts-by-type', 'polycart.carts-by-type', {}],
-      ['polycart.recent-carts', 'polycart.recent-carts', {}]
+    expect(manifest.navigation.map(item => item.path)).toEqual(['/polycart/carts', '/polycart/types'])
+    expect(manifest.widgets.map(widget => widget.component ?? widget.key)).toEqual([
+      'polycart.carts-by-type',
+      'polycart.recent-carts'
     ])
-    expect(fixture.settings).toBeNull()
-    expect(fixture.search_sources.map(source => [source.key, source.integration])).toEqual([['polycart', 'polycart']])
+    expect(manifest.settings).toBeUndefined()
+    expect(manifest.hooks).toBeUndefined()
+    expect(manifest.search_sources.map(source => source.key)).toEqual(['polycart'])
   })
 
   it('has a screens entry in src/atrium.ts for every screen key, and nothing else', () => {
-    expect(Object.keys(screens).sort()).toEqual(fixture.screens.map(screen => screen.key).sort())
+    expect(Object.keys(screens).sort()).toEqual(manifest.screens.map(screen => screen.key).sort())
   })
 
-  it('has a page for every screen, at the path PHP declares', async () => {
+  it('has a page for every screen, at the path the manifest declares', async () => {
     const routes = (await withSetup(() => useRouter())).getRoutes()
 
-    for (const screen of fixture.screens) {
+    for (const screen of manifest.screens) {
       const route = routes.find(candidate => candidate.name === screens[screen.key])
 
       expect(route, screen.key).toBeDefined()
@@ -77,7 +82,7 @@ describe('the polycart fixture', () => {
   it('has a page for every nav link', async () => {
     const router = await withSetup(() => useRouter())
 
-    expect(fixture.navigation.map(item => router.resolve(item.link!.path).name)).toEqual([
+    expect(manifest.navigation.map(item => router.resolve(item.path).name)).toEqual([
       screens['polycart.carts'],
       screens['polycart.types']
     ])
@@ -91,13 +96,13 @@ describe('the polycart fixture', () => {
 })
 
 describe('the polycart registrations', () => {
-  it('registers a component for each fixture widget and a resolver for each fixture search source, and nothing else', () => {
-    expect(Object.keys(polycart.widgets ?? {})).toEqual(fixture.widgets.map(widget => widget.component))
+  it('registers a component for each manifest widget and a resolver for each manifest search source, and nothing else', () => {
+    expect(Object.keys(polycart.widgets ?? {})).toEqual(manifest.widgets.map(widget => widget.component ?? widget.key))
     expect(polycart.widgets?.['polycart.carts-by-type']).toBe(PolycartCartsByType)
     expect(polycart.widgets?.['polycart.recent-carts']).toBe(PolycartRecentCarts)
-    expect(Object.keys(polycart.searchSources ?? {})).toEqual(fixture.search_sources.map(source => source.key))
+    expect(Object.keys(polycart.searchSources ?? {})).toEqual(manifest.search_sources.map(source => source.key))
     expect(polycart.searchSources?.['polycart']).toBe(searchPolycartCarts)
-    expect(Object.keys(polycart.extensions ?? {})).toEqual([])
+    expect(Object.keys(polycart.extensions ?? {})).toEqual((manifest.hooks ?? []).flatMap(hook => [...Object.keys(hook.tabs ?? {}), ...Object.keys(hook.sections ?? {})]))
     expect(Object.keys(polycart.settingsPanels ?? {})).toEqual([])
     expect(Object.keys(polycart.liveResolvers ?? {})).toEqual([])
   })

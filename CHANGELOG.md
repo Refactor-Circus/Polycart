@@ -30,6 +30,7 @@ Polycart is now a JSON API and an MCP server, with no PHP UI of its own. Atrium 
 - The `cart-stats` MCP tool, returning the stats payload under `data`, offered to Cortex like every other tool.
 - `openapi.json`, a committed OpenAPI document of every `polycart.*` route, exported by the workbench command `php vendor/bin/testbench workbench:openapi` (dedoc/scramble, dev only).
 - **Polycart ships its Atrium module**: the carts, cart and cart types pages, the *Carts by type* and *Recent carts* widgets and the carts search source, as JavaScript built into the committed `dist/atrium/` (sources in `atrium/`, left out of the Composer dist) and declared in `composer.json`'s `extra.atrium`. Atrium v2 discovers it and injects it into its page; Polycart still has no PHP dependency on Atrium.
+- **Polycart declares its Atrium integration in a manifest**: `atrium/src/integration.json` (built to `dist/atrium/integration.json`, named by `extra.atrium.integration`) lists its navigation, widgets, search source and screens as static JSON, so Atrium no longer declares them for Polycart.
 - `client/`, the TypeScript client `@refactor-circus/polycart-client` (v2.0.0): `createPolycartClient(options)` around openapi-fetch, typed from `openapi.json` and shipped as TypeScript source. Install it as a git dependency on the `v2.0.0` tag. `composer client:generate` regenerates `openapi.json` and the client; `tests/Feature/OpenApiTest.php` and a CI `client` job fail when either is stale.
 
 ## [v0.1.0](https://github.com/Refactor-Circus/Polycart/commits/v0.1.0) - 2026-10-30

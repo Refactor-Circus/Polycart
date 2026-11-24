@@ -107,3 +107,9 @@
 - Rationale: The user said "move the vue files for each module back into their respective modules. modules need to register their js. js should be injected into the blade file. modules are responsible for their own frontend and cjs clients from now on".
 - Date: 2026-11-24
 - Raised by: user
+
+## D-019: Who declares Polycart's Atrium integration?
+- Choice: Polycart does, in the static manifest `atrium/src/integration.json` (Atrium's D-090, commit 009b5bc): the `polycart.atrium` feature, the Carts and Cart types navigation items, the two widgets, the carts search source and the three screens, with no settings panel, hooks or `$config` values. The SDK preset validates it and writes `dist/atrium/integration.json`, named by `extra.atrium.integration`; the SDK pin moves to 009b5bc. `atrium/test/integration.test.ts` checks the manifest with `expectIntegrationManifest()` (replacing Atrium's PHP-written fixture) and that the module registers every screen, widget and search source it declares; `AtriumModuleTest` checks the declaration and the built copy. Still no PHP names Atrium.
+- Rationale: The user said "move the php declarations": each package owns its Atrium integration declaration, which Atrium used to hold in PHP.
+- Date: 2026-11-24
+- Raised by: user

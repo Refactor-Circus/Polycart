@@ -125,6 +125,7 @@
         },
         "atrium": {
             "key": "polycart",
+            "integration": "dist/atrium/integration.json",
             "scripts": [
                 "dist/atrium/atrium.js"
             ],
