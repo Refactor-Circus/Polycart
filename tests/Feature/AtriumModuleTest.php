@@ -115,7 +115,7 @@ it('ships dist/atrium and leaves the module\'s sources out of the Composer dist'
         ->and($attributes)->not->toMatch('#^/dist\S*\s+export-ignore#m');
 });
 
-it('pins the Atrium SDK as a development dependency of the module only', function (): void {
+it('pins the Atrium SDK as a development dependency of the module only, with nothing it brings itself', function (): void {
     /** @var array{name: string, private: bool, devDependencies: array<string, string>, dependencies?: array<string, string>} $package */
     $package = json_decode((string) file_get_contents(atriumModulePath('atrium/package.json')), true, flags: JSON_THROW_ON_ERROR);
 
@@ -123,6 +123,7 @@ it('pins the Atrium SDK as a development dependency of the module only', functio
         ->and($package['private'])->toBeTrue()
         ->and($package)->not->toHaveKey('dependencies')
         ->and($package['devDependencies']['@refactor-circus/atrium'])->toMatch('/^github:refactor-circus\/atrium#[0-9a-zA-Z.]+&path:ui\/sdk$/')
+        ->and($package['devDependencies'])->not->toHaveKeys(['@types/sortablejs', 'unplugin-vue-components'])
         ->and(atriumModulePath('atrium/pnpm-lock.yaml'))->toBeFile();
 });
 

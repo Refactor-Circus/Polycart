@@ -94,7 +94,7 @@ Example stats payload:
 **OpenAPI and client.**
 - `ExportOpenApiCommand` points the default connection at an in-memory SQLite database, runs the package and workbench migrations, then calls `scramble:export --path={path}`.
 - `client/package.json`'s `generate` script runs `openapi-typescript ../openapi.json -o src/schema.d.ts && node scripts/stamp.mjs`. `stamp.mjs` writes the SHA-256 of `../openapi.json` to `openapi.sha256`.
-- The client ships as TypeScript source with no build step: Atrium's Nuxt layer compiles it.
+- The client ships as TypeScript source with no build step: Polycart's own Atrium module (`atrium/`, built into `dist/atrium`) compiles it.
 
 **Config.** The only changes to `config/polycart.php` are the removed `ui`/`atrium` keys and the rewritten banners. `routes.enabled` stays `false`.
 
