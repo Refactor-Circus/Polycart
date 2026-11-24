@@ -9,7 +9,7 @@ import { useRoute as N, useRouter as pe } from "vue-router";
 var me = {
 	class: "flex flex-col gap-4",
 	"data-testid": "polycart-carts"
-}, he = { class: "flex gap-2" }, ge = {
+}, he = { class: "mt-field-label flex gap-2" }, ge = {
 	key: 1,
 	class: "text-muted"
 }, _e = {
@@ -130,7 +130,7 @@ var me = {
 			return T(), y("div", me, [A(J) ? (T(), _(o, { key: 0 })) : (T(), y(h, { key: 1 }, [
 				S(m, {
 					state: A(R),
-					class: "grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-5",
+					class: "grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-5",
 					"data-testid": "polycart-filters",
 					onSubmit: Z
 				}, {

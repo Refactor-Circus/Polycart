@@ -174,7 +174,7 @@ void Promise.all([loadTypes(), load()])
     <AtriumNoAccess v-if="forbidden" />
 
     <template v-else>
-      <UForm :state="filters" class="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-5" data-testid="polycart-filters" @submit="applyFilters">
+      <UForm :state="filters" class="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-5" data-testid="polycart-filters" @submit="applyFilters">
         <UFormField :label="t('polycart.carts.type')" name="type">
           <AtriumSelect v-model="filters.type" :items="typeItems" :blank="t('polycart.carts.all_types')" class="w-full" data-testid="polycart-filter-type" />
         </UFormField>
@@ -187,7 +187,7 @@ void Promise.all([loadTypes(), load()])
         <UFormField :label="t('polycart.carts.search')" name="search">
           <UInput v-model="filters.search" class="w-full" data-testid="polycart-filter-search" />
         </UFormField>
-        <div class="flex gap-2">
+        <div class="mt-field-label flex gap-2">
           <UButton type="submit" variant="outline" icon="i-lucide-funnel" :label="t('polycart.carts.filter')" data-testid="polycart-filter" />
           <UButton color="neutral" variant="ghost" icon="i-lucide-x" :label="t('polycart.carts.reset')" data-testid="polycart-reset" @click="resetFilters" />
         </div>

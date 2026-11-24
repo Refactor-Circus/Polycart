@@ -15,7 +15,7 @@ var Te = {
 }, De = { class: "flex flex-wrap items-center gap-2" }, Oe = { class: "grid gap-4 sm:grid-cols-3" }, ke = {
 	key: 1,
 	class: "text-muted"
-}, Ae = { class: "font-medium" }, je = { class: "flex flex-wrap items-end gap-4" }, Me = { class: "font-medium" }, Ne = {
+}, Ae = { class: "font-medium" }, je = { class: "flex flex-wrap items-start gap-4" }, Me = { class: "font-medium" }, Ne = {
 	key: 0,
 	class: "flex items-center gap-2"
 }, Pe = {
@@ -393,7 +393,7 @@ var Te = {
 					default: P(() => [x("div", je, [M(Y).length > 0 ? (D(), v(O, {
 						key: 0,
 						state: { status: M(V) },
-						class: "flex items-end gap-2",
+						class: "flex items-start gap-2",
 						"data-testid": "polycart-transition-form",
 						onSubmit: dt
 					}, {
@@ -415,6 +415,7 @@ var Te = {
 							icon: "i-lucide-arrow-right",
 							label: M(m)("polycart.cart.move"),
 							loading: M(R).busy.value,
+							class: "mt-field-label",
 							"data-testid": "polycart-transition"
 						}, null, 8, ["label", "loading"])]),
 						_: 1
@@ -424,7 +425,7 @@ var Te = {
 							to: M(H),
 							copy: M(U)
 						},
-						class: "flex flex-wrap items-end gap-2",
+						class: "flex flex-wrap items-start gap-2",
 						"data-testid": "polycart-convert-form",
 						onSubmit: ft
 					}, {
@@ -447,7 +448,7 @@ var Te = {
 								modelValue: M(U),
 								"onUpdate:modelValue": r[3] ||= (e) => E(U) ? U.value = e : null,
 								label: M(m)("polycart.cart.keep_original"),
-								class: "pb-1.5",
+								class: "mt-field-label h-field items-center",
 								"data-testid": "polycart-convert-copy"
 							}, null, 8, ["modelValue", "label"]),
 							C(c, {
@@ -455,6 +456,7 @@ var Te = {
 								icon: "i-lucide-arrow-right-left",
 								label: M(m)("polycart.cart.convert"),
 								loading: M(R).busy.value,
+								class: "mt-field-label",
 								"data-testid": "polycart-convert"
 							}, null, 8, ["label", "loading"])
 						]),
@@ -529,7 +531,7 @@ var Te = {
 					default: P(() => [x("div", Re, [
 						C(O, {
 							state: { visibility: M(W) },
-							class: "flex items-end gap-2",
+							class: "flex items-start gap-2",
 							"data-testid": "polycart-visibility-form",
 							onSubmit: pt
 						}, {
@@ -551,6 +553,7 @@ var Te = {
 								variant: "outline",
 								icon: "i-lucide-check",
 								label: M(m)("polycart.cart.save"),
+								class: "mt-field-label",
 								"data-testid": "polycart-set-visibility"
 							}, null, 8, ["label"])]),
 							_: 1
@@ -575,7 +578,7 @@ var Te = {
 						t.scope_type === null ? y("", !0) : (D(), v(O, {
 							key: 2,
 							state: M(q),
-							class: "flex flex-wrap items-end gap-2",
+							class: "flex flex-wrap items-start gap-2",
 							"data-testid": "polycart-share-form",
 							onSubmit: gt
 						}, {
@@ -629,6 +632,7 @@ var Te = {
 									icon: "i-lucide-user-plus",
 									label: M(m)("polycart.cart.share"),
 									loading: M(R).busy.value,
+									class: "mt-field-label",
 									"data-testid": "polycart-share"
 								}, null, 8, ["label", "loading"])
 							]),

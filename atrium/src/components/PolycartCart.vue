@@ -398,20 +398,20 @@ void Promise.all([client ? loadTypes(client) : null, load()])
           <template #header>
             <p class="font-medium">{{ t('polycart.cart.lifecycle') }}</p>
           </template>
-          <div class="flex flex-wrap items-end gap-4">
-            <UForm v-if="nextStatuses.length > 0" :state="{ status: transitionTo }" class="flex items-end gap-2" data-testid="polycart-transition-form" @submit="transition">
+          <div class="flex flex-wrap items-start gap-4">
+            <UForm v-if="nextStatuses.length > 0" :state="{ status: transitionTo }" class="flex items-start gap-2" data-testid="polycart-transition-form" @submit="transition">
               <UFormField :label="t('polycart.cart.move_to')" name="status" :error="action.error('status')">
                 <USelect v-model="transitionTo" :items="nextStatuses" class="w-48" data-testid="polycart-transition-status" />
               </UFormField>
-              <UButton type="submit" icon="i-lucide-arrow-right" :label="t('polycart.cart.move')" :loading="action.busy.value" data-testid="polycart-transition" />
+              <UButton type="submit" icon="i-lucide-arrow-right" :label="t('polycart.cart.move')" :loading="action.busy.value" class="mt-field-label" data-testid="polycart-transition" />
             </UForm>
 
-            <UForm v-if="conversions.length > 0" :state="{ to: convertTo, copy: keepOriginal }" class="flex flex-wrap items-end gap-2" data-testid="polycart-convert-form" @submit="convert">
+            <UForm v-if="conversions.length > 0" :state="{ to: convertTo, copy: keepOriginal }" class="flex flex-wrap items-start gap-2" data-testid="polycart-convert-form" @submit="convert">
               <UFormField :label="t('polycart.cart.convert_to')" name="to" :error="action.error('to')">
                 <USelect v-model="convertTo" :items="conversions" class="w-48" data-testid="polycart-convert-to" />
               </UFormField>
-              <UCheckbox v-model="keepOriginal" :label="t('polycart.cart.keep_original')" class="pb-1.5" data-testid="polycart-convert-copy" />
-              <UButton type="submit" icon="i-lucide-arrow-right-left" :label="t('polycart.cart.convert')" :loading="action.busy.value" data-testid="polycart-convert" />
+              <UCheckbox v-model="keepOriginal" :label="t('polycart.cart.keep_original')" class="mt-field-label h-field items-center" data-testid="polycart-convert-copy" />
+              <UButton type="submit" icon="i-lucide-arrow-right-left" :label="t('polycart.cart.convert')" :loading="action.busy.value" class="mt-field-label" data-testid="polycart-convert" />
             </UForm>
           </div>
         </UCard>
@@ -466,11 +466,11 @@ void Promise.all([client ? loadTypes(client) : null, load()])
           </template>
 
           <div class="flex flex-col gap-4">
-            <UForm :state="{ visibility }" class="flex items-end gap-2" data-testid="polycart-visibility-form" @submit="setVisibility">
+            <UForm :state="{ visibility }" class="flex items-start gap-2" data-testid="polycart-visibility-form" @submit="setVisibility">
               <UFormField :label="t('polycart.cart.visible_to')" name="visibility" :error="action.error('visibility')">
                 <USelect v-model="visibility" :items="visibilityItems" class="w-72" data-testid="polycart-visibility" />
               </UFormField>
-              <UButton type="submit" variant="outline" icon="i-lucide-check" :label="t('polycart.cart.save')" data-testid="polycart-set-visibility" />
+              <UButton type="submit" variant="outline" icon="i-lucide-check" :label="t('polycart.cart.save')" class="mt-field-label" data-testid="polycart-set-visibility" />
             </UForm>
 
             <p v-if="(shown.members ?? []).length === 0" class="text-sm text-muted">{{ t('polycart.cart.no_members') }}</p>
@@ -485,7 +485,7 @@ void Promise.all([client ? loadTypes(client) : null, load()])
               </li>
             </ul>
 
-            <UForm v-if="shown.scope_type !== null" :state="share" class="flex flex-wrap items-end gap-2" data-testid="polycart-share-form" @submit="shareCart">
+            <UForm v-if="shown.scope_type !== null" :state="share" class="flex flex-wrap items-start gap-2" data-testid="polycart-share-form" @submit="shareCart">
               <UFormField :label="t('polycart.cart.member_type')" name="member_type" :hint="t('polycart.cart.member_type_hint')" :error="action.error('member_type')">
                 <UInput v-model="share.member_type" class="w-40" data-testid="polycart-share-type" />
               </UFormField>
@@ -495,7 +495,7 @@ void Promise.all([client ? loadTypes(client) : null, load()])
               <UFormField :label="t('polycart.cart.role')" name="role" :error="action.error('role')">
                 <UInput v-model="share.role" class="w-40" data-testid="polycart-share-role" />
               </UFormField>
-              <UButton type="submit" icon="i-lucide-user-plus" :label="t('polycart.cart.share')" :loading="action.busy.value" data-testid="polycart-share" />
+              <UButton type="submit" icon="i-lucide-user-plus" :label="t('polycart.cart.share')" :loading="action.busy.value" class="mt-field-label" data-testid="polycart-share" />
             </UForm>
           </div>
         </UCard>
