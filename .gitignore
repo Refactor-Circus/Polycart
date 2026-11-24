@@ -12,6 +12,7 @@ composer.lock
 composer.local.json
 composer.local.lock
 /client/node_modules
+/atrium/node_modules
 
 # ringside generated files
 /docs/agent/standards.index.yml
