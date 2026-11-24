@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
 import { AtriumIntegrationError } from '@refactor-circus/atrium'
 import PolycartCartStatus from './PolycartCartStatus.vue'
 import {
@@ -35,6 +36,9 @@ interface Filters {
 
 const FILTERS = ['type', 'status', 'source', 'search'] as const
 
+/** The type filter's "all types" choice: a select item's value cannot be empty. */
+const ALL_TYPES = '*'
+
 const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
@@ -63,6 +67,29 @@ const forbidden = ref(false)
 const errors = ref<string[]>([])
 
 const dates = computed(() => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }))
+
+const typeItems = computed(() => [
+  { value: ALL_TYPES, label: t('polycart.carts.all_types') },
+  ...types.value.map(type => ({ value: type, label: type }))
+])
+
+const typeChoice = computed({
+  get: () => filters.type === '' ? ALL_TYPES : filters.type,
+  set: (value: string) => {
+    filters.type = value === ALL_TYPES ? '' : value
+  }
+})
+
+const columns = computed<TableColumn<PolycartCart>[]>(() => [
+  { id: 'cart', header: t('polycart.carts.cart') },
+  { id: 'type', header: t('polycart.carts.type') },
+  { id: 'status', header: t('polycart.carts.status') },
+  { id: 'owner', header: t('polycart.carts.owner') },
+  { id: 'source', header: t('polycart.carts.source') },
+  { id: 'lines', header: t('polycart.carts.lines'), meta: { class: { th: 'text-right', td: 'text-right tabular-nums' } } },
+  { id: 'updated', header: t('polycart.carts.updated'), meta: { class: { td: 'text-muted' } } },
+  { id: 'expires', header: t('polycart.carts.expires') }
+])
 
 /** `carts.index`'s query: the applied filters that are set, and the cursor. */
 function query(): Record<string, string> {
@@ -160,27 +187,24 @@ void Promise.all([loadTypes(), load()])
     <AtriumNoAccess v-if="forbidden" />
 
     <template v-else>
-      <form class="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-5" data-testid="polycart-filters" @submit.prevent="applyFilters">
-        <UFormField :label="t('polycart.carts.type')">
-          <select v-model="filters.type" class="w-full rounded-md border border-default bg-default px-2.5 py-1.5 text-sm" data-testid="polycart-filter-type">
-            <option value="">{{ t('polycart.carts.all_types') }}</option>
-            <option v-for="type in types" :key="type" :value="type">{{ type }}</option>
-          </select>
+      <UForm :state="filters" class="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-5" data-testid="polycart-filters" @submit="applyFilters">
+        <UFormField :label="t('polycart.carts.type')" name="type">
+          <USelect v-model="typeChoice" :items="typeItems" class="w-full" data-testid="polycart-filter-type" />
         </UFormField>
-        <UFormField :label="t('polycart.carts.status')">
+        <UFormField :label="t('polycart.carts.status')" name="status">
           <UInput v-model="filters.status" class="w-full" data-testid="polycart-filter-status" />
         </UFormField>
-        <UFormField :label="t('polycart.carts.source')">
+        <UFormField :label="t('polycart.carts.source')" name="source">
           <UInput v-model="filters.source" class="w-full" data-testid="polycart-filter-source" />
         </UFormField>
-        <UFormField :label="t('polycart.carts.search')">
+        <UFormField :label="t('polycart.carts.search')" name="search">
           <UInput v-model="filters.search" class="w-full" data-testid="polycart-filter-search" />
         </UFormField>
         <div class="flex gap-2">
           <UButton type="submit" variant="outline" icon="i-lucide-funnel" :label="t('polycart.carts.filter')" data-testid="polycart-filter" />
           <UButton color="neutral" variant="ghost" icon="i-lucide-x" :label="t('polycart.carts.reset')" data-testid="polycart-reset" @click="resetFilters" />
         </div>
-      </form>
+      </UForm>
 
       <UAlert v-if="errors.length > 0" color="error" variant="subtle" icon="i-lucide-circle-alert" data-testid="polycart-filter-errors">
         <template #description>
@@ -192,53 +216,43 @@ void Promise.all([loadTypes(), load()])
 
       <USkeleton v-if="!loaded" class="h-32" />
 
-      <div v-else-if="failed" class="flex items-center justify-between gap-3 rounded-md border border-default p-4 text-sm" role="alert" data-testid="polycart-load-error">
-        <span>{{ t('polycart.carts.load_failed') }}</span>
+      <AtriumState v-else-if="failed" kind="error" :title="t('polycart.carts.load_failed')" data-testid="polycart-load-error">
         <UButton size="sm" variant="outline" icon="i-lucide-refresh-cw" :label="t('polycart.retry')" data-testid="polycart-retry" @click="load()" />
-      </div>
+      </AtriumState>
 
-      <p v-else-if="carts.length === 0" class="atrium-empty" data-testid="polycart-no-carts">
-        {{ t('polycart.carts.no_carts') }}
-      </p>
-
-      <div v-else class="overflow-x-auto rounded-md border border-default">
-        <table class="w-full text-left text-sm" data-testid="polycart-carts-table">
-          <thead class="bg-elevated text-muted">
-            <tr>
-              <th class="px-3 py-2 font-medium">{{ t('polycart.carts.cart') }}</th>
-              <th class="px-3 py-2 font-medium">{{ t('polycart.carts.type') }}</th>
-              <th class="px-3 py-2 font-medium">{{ t('polycart.carts.status') }}</th>
-              <th class="px-3 py-2 font-medium">{{ t('polycart.carts.owner') }}</th>
-              <th class="px-3 py-2 font-medium">{{ t('polycart.carts.source') }}</th>
-              <th class="px-3 py-2 text-right font-medium">{{ t('polycart.carts.lines') }}</th>
-              <th class="px-3 py-2 font-medium">{{ t('polycart.carts.updated') }}</th>
-              <th class="px-3 py-2 font-medium">{{ t('polycart.carts.expires') }}</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-default">
-            <tr v-for="cart in carts" :key="cart.id" data-testid="polycart-cart-row">
-              <td class="px-3 py-2">
-                <RouterLink :to="polycartCartPath(cart.id)" class="font-medium underline-offset-2 hover:underline" data-testid="polycart-cart-link">
-                  {{ polycartCartTitle(cart) }}
-                </RouterLink>
-              </td>
-              <td class="px-3 py-2"><UBadge color="primary" variant="subtle" :label="cart.type" /></td>
-              <td class="px-3 py-2">
-                <PolycartCartStatus v-if="cart.status" :status="cart.status" :expired="polycartExpired(cart)" />
-                <span v-else class="text-muted">—</span>
-              </td>
-              <td class="px-3 py-2">{{ polycartOwner(cart) ?? t('polycart.guest') }}</td>
-              <td class="px-3 py-2"><UBadge color="neutral" variant="subtle" :label="cart.source ?? '—'" /></td>
-              <td class="px-3 py-2 text-right tabular-nums">{{ cart.lines_count ?? '' }}</td>
-              <td class="px-3 py-2 text-muted">{{ dated(cart.updated_at) }}</td>
-              <td class="px-3 py-2">
-                <span v-if="cart.expires_at" :class="polycartExpired(cart) ? 'text-warning' : 'text-muted'">{{ dated(cart.expires_at) }}</span>
-                <span v-else class="text-muted">{{ t('polycart.never') }}</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <UTable v-else :data="carts" :columns="columns" class="rounded-md border border-default" data-testid="polycart-carts-table">
+        <template #empty>
+          <UEmpty icon="i-lucide-shopping-cart" :title="t('polycart.carts.no_carts')" variant="naked" data-testid="polycart-no-carts" />
+        </template>
+        <template #cart-cell="{ row }">
+          <ULink :to="polycartCartPath(row.original.id)" class="font-medium underline-offset-2 hover:underline" data-testid="polycart-cart-link">
+            {{ polycartCartTitle(row.original) }}
+          </ULink>
+        </template>
+        <template #type-cell="{ row }">
+          <UBadge color="primary" variant="subtle" :label="row.original.type" />
+        </template>
+        <template #status-cell="{ row }">
+          <PolycartCartStatus v-if="row.original.status" :status="row.original.status" :expired="polycartExpired(row.original)" />
+          <span v-else class="text-muted">—</span>
+        </template>
+        <template #owner-cell="{ row }">
+          {{ polycartOwner(row.original) ?? t('polycart.guest') }}
+        </template>
+        <template #source-cell="{ row }">
+          <UBadge color="neutral" variant="subtle" :label="row.original.source ?? '—'" />
+        </template>
+        <template #lines-cell="{ row }">
+          {{ row.original.lines_count ?? '' }}
+        </template>
+        <template #updated-cell="{ row }">
+          {{ dated(row.original.updated_at) }}
+        </template>
+        <template #expires-cell="{ row }">
+          <span v-if="row.original.expires_at" :class="polycartExpired(row.original) ? 'text-warning' : 'text-muted'">{{ dated(row.original.expires_at) }}</span>
+          <span v-else class="text-muted">{{ t('polycart.never') }}</span>
+        </template>
+      </UTable>
 
       <div v-if="loaded && !failed && (next !== null || prev !== null)" class="flex items-center justify-between gap-3 text-sm">
         <UButton

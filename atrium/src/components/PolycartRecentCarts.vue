@@ -28,9 +28,14 @@ function updated(at: string | null): string {
     <AtriumErrorCard v-else-if="status === 'error'" :message="t('atrium.widget.failed')" />
     <USkeleton v-else-if="stats === null" class="h-10" />
 
-    <p v-else-if="stats.recent.length === 0" class="text-sm text-muted" data-testid="polycart-no-recent-carts">
-      {{ t('polycart.widgets.no_carts') }}
-    </p>
+    <UEmpty
+      v-else-if="stats.recent.length === 0"
+      icon="i-lucide-shopping-cart"
+      :title="t('polycart.widgets.no_carts')"
+      size="xs"
+      variant="naked"
+      data-testid="polycart-no-recent-carts"
+    />
 
     <ul v-else class="flex flex-col gap-2">
       <li
@@ -41,7 +46,7 @@ function updated(at: string | null): string {
       >
         <span class="flex min-w-0 items-center gap-2">
           <UBadge color="primary" variant="subtle" :label="cart.type" />
-          <RouterLink :to="polycartCartPath(cart.id)" class="truncate underline-offset-2 hover:underline">{{ polycartCartTitle(cart) }}</RouterLink>
+          <ULink :to="polycartCartPath(cart.id)" class="truncate underline-offset-2 hover:underline">{{ polycartCartTitle(cart) }}</ULink>
         </span>
         <span class="shrink-0 text-muted">{{ t('polycart.widgets.line_count', cart.lines_count ?? 0) }} · {{ updated(cart.updated_at) }}</span>
       </li>

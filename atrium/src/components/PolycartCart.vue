@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
 import PolycartCartStatus from './PolycartCartStatus.vue'
 import {
   POLYCART_VISIBILITIES,
@@ -77,6 +78,15 @@ const cartType = computed(() => types.value?.find(type => type.key === cart.valu
 const unknownType = computed(() => types.value !== null && cart.value !== null && cartType.value === null)
 const nextStatuses = computed(() => polycartNextStatuses(cartType.value, cart.value?.status ?? null))
 const conversions = computed(() => cartType.value?.converts_to ?? [])
+const visibilityItems = computed(() => POLYCART_VISIBILITIES.map(option => ({ value: option, label: t(`polycart.visibility.${option}`) })))
+
+const lineColumns = computed<TableColumn<PolycartLine>[]>(() => [
+  { id: 'item', header: t('polycart.cart.item') },
+  { id: 'unit_price', header: t('polycart.cart.unit_price'), meta: { class: { th: 'text-right', td: 'text-right tabular-nums' } } },
+  { id: 'quantity', header: t('polycart.cart.quantity') },
+  { id: 'total', header: t('polycart.cart.total'), meta: { class: { th: 'text-right', td: 'text-right tabular-nums' } } },
+  { id: 'remove', header: () => h('span', { class: 'sr-only' }, t('polycart.cart.remove')), meta: { class: { td: 'text-right' } } }
+])
 
 // The cart and its type load side by side: each choice defaults to the first
 // on offer once both are in, and again whenever what is on offer changes.
@@ -304,26 +314,28 @@ void Promise.all([client ? loadTypes(client) : null, load()])
 
     <USkeleton v-else-if="!loaded" class="h-48" />
 
-    <div v-else-if="missing" class="atrium-empty items-start text-start" data-testid="polycart-not-found">
-      <p>{{ t('polycart.cart.not_found') }}</p>
+    <AtriumState v-else-if="missing" icon="i-lucide-search-x" :title="t('polycart.cart.not_found')" data-testid="polycart-not-found">
       <UButton size="sm" variant="outline" icon="i-lucide-arrow-left" to="/polycart/carts" :label="t('polycart.cart.all_carts')" />
-    </div>
+    </AtriumState>
 
-    <div v-else-if="failed || cart === null" class="flex items-center justify-between gap-3 rounded-md border border-default p-4 text-sm" role="alert" data-testid="polycart-load-error">
-      <span>{{ t('polycart.cart.load_failed') }}</span>
+    <AtriumState v-else-if="failed || cart === null" kind="error" :title="t('polycart.cart.load_failed')" data-testid="polycart-load-error">
       <UButton size="sm" variant="outline" icon="i-lucide-refresh-cw" :label="t('polycart.retry')" data-testid="polycart-retry" @click="load()" />
-    </div>
+    </AtriumState>
 
     <!-- The loaded cart, as a loop variable so it stays non-null in every slot. -->
     <template v-else>
       <template v-for="shown in shownCart" :key="shown.id">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <div class="flex min-w-0 items-center gap-2">
-            <h2 class="truncate text-lg font-semibold" data-testid="polycart-cart-title">{{ polycartCartTitle(shown) }}</h2>
-            <UBadge color="primary" variant="subtle" :label="shown.type" />
-            <PolycartCartStatus v-if="shown.status" :status="shown.status" :expired="polycartExpired(shown)" />
-          </div>
-          <div class="flex gap-2">
+        <UPageHeader :ui="{ root: 'border-none py-0', title: 'truncate' }">
+          <template #title>
+            <span data-testid="polycart-cart-title">{{ polycartCartTitle(shown) }}</span>
+          </template>
+          <template #description>
+            <span class="flex flex-wrap items-center gap-2">
+              <UBadge color="primary" variant="subtle" :label="shown.type" />
+              <PolycartCartStatus v-if="shown.status" :status="shown.status" :expired="polycartExpired(shown)" />
+            </span>
+          </template>
+          <template #links>
             <UButton
               size="sm"
               color="neutral"
@@ -344,8 +356,8 @@ void Promise.all([client ? loadTypes(client) : null, load()])
               data-testid="polycart-delete"
               @click="destroy"
             />
-          </div>
-        </div>
+          </template>
+        </UPageHeader>
 
         <UAlert v-if="notice" color="success" variant="subtle" icon="i-lucide-check" :title="notice" data-testid="polycart-notice" />
         <AtriumNoAccess v-if="action.forbidden.value" compact :description="t('polycart.cart.forbidden')" />
@@ -353,18 +365,9 @@ void Promise.all([client ? loadTypes(client) : null, load()])
         <UAlert v-if="unknownType" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('polycart.cart.unknown_type', { type: shown.type })" data-testid="polycart-unknown-type" />
 
         <div class="grid gap-4 sm:grid-cols-3">
-          <div class="rounded-md border border-default p-4" data-testid="polycart-subtotal">
-            <p class="text-xs text-muted">{{ t('polycart.cart.subtotal') }}</p>
-            <p class="text-lg font-semibold tabular-nums">{{ polycartMoney(shown.subtotal) }}</p>
-          </div>
-          <div class="rounded-md border border-default p-4" data-testid="polycart-quantity">
-            <p class="text-xs text-muted">{{ t('polycart.cart.quantity') }}</p>
-            <p class="text-lg font-semibold tabular-nums">{{ shown.quantity ?? 0 }}</p>
-          </div>
-          <div class="rounded-md border border-default p-4" data-testid="polycart-lines-count">
-            <p class="text-xs text-muted">{{ t('polycart.cart.lines') }}</p>
-            <p class="text-lg font-semibold tabular-nums">{{ shown.lines?.length ?? shown.lines_count ?? 0 }}</p>
-          </div>
+          <AtriumStat :label="t('polycart.cart.subtotal')" :value="polycartMoney(shown.subtotal)" data-testid="polycart-subtotal" />
+          <AtriumStat :label="t('polycart.cart.quantity')" :value="shown.quantity ?? 0" tone="neutral" data-testid="polycart-quantity" />
+          <AtriumStat :label="t('polycart.cart.lines')" :value="shown.lines?.length ?? shown.lines_count ?? 0" tone="neutral" data-testid="polycart-lines-count" />
         </div>
 
         <UCard>
@@ -387,7 +390,7 @@ void Promise.all([client ? loadTypes(client) : null, load()])
             <template v-if="shown.parent_id">
               <dt class="text-muted">{{ t('polycart.cart.parent') }}</dt>
               <dd>
-                <RouterLink :to="polycartCartPath(shown.parent_id)" class="font-mono underline-offset-2 hover:underline" data-testid="polycart-parent-link">{{ shown.parent_id }}</RouterLink>
+                <ULink :to="polycartCartPath(shown.parent_id)" class="font-mono underline-offset-2 hover:underline" data-testid="polycart-parent-link">{{ shown.parent_id }}</ULink>
               </dd>
             </template>
           </dl>
@@ -398,27 +401,20 @@ void Promise.all([client ? loadTypes(client) : null, load()])
             <p class="font-medium">{{ t('polycart.cart.lifecycle') }}</p>
           </template>
           <div class="flex flex-wrap items-end gap-4">
-            <form v-if="nextStatuses.length > 0" class="flex items-end gap-2" data-testid="polycart-transition-form" @submit.prevent="transition">
-              <UFormField :label="t('polycart.cart.move_to')" :error="action.error('status')">
-                <select v-model="transitionTo" class="w-48 rounded-md border border-default bg-default px-2.5 py-1.5 text-sm" data-testid="polycart-transition-status">
-                  <option v-for="status in nextStatuses" :key="status" :value="status">{{ status }}</option>
-                </select>
+            <UForm v-if="nextStatuses.length > 0" :state="{ status: transitionTo }" class="flex items-end gap-2" data-testid="polycart-transition-form" @submit="transition">
+              <UFormField :label="t('polycart.cart.move_to')" name="status" :error="action.error('status')">
+                <USelect v-model="transitionTo" :items="nextStatuses" class="w-48" data-testid="polycart-transition-status" />
               </UFormField>
               <UButton type="submit" icon="i-lucide-arrow-right" :label="t('polycart.cart.move')" :loading="action.busy.value" data-testid="polycart-transition" />
-            </form>
+            </UForm>
 
-            <form v-if="conversions.length > 0" class="flex flex-wrap items-end gap-2" data-testid="polycart-convert-form" @submit.prevent="convert">
-              <UFormField :label="t('polycart.cart.convert_to')" :error="action.error('to')">
-                <select v-model="convertTo" class="w-48 rounded-md border border-default bg-default px-2.5 py-1.5 text-sm" data-testid="polycart-convert-to">
-                  <option v-for="to in conversions" :key="to" :value="to">{{ to }}</option>
-                </select>
+            <UForm v-if="conversions.length > 0" :state="{ to: convertTo, copy: keepOriginal }" class="flex flex-wrap items-end gap-2" data-testid="polycart-convert-form" @submit="convert">
+              <UFormField :label="t('polycart.cart.convert_to')" name="to" :error="action.error('to')">
+                <USelect v-model="convertTo" :items="conversions" class="w-48" data-testid="polycart-convert-to" />
               </UFormField>
-              <label class="flex items-center gap-2 pb-1.5 text-sm">
-                <input v-model="keepOriginal" type="checkbox" data-testid="polycart-convert-copy">
-                {{ t('polycart.cart.keep_original') }}
-              </label>
+              <UCheckbox v-model="keepOriginal" :label="t('polycart.cart.keep_original')" class="pb-1.5" data-testid="polycart-convert-copy" />
               <UButton type="submit" icon="i-lucide-arrow-right-left" :label="t('polycart.cart.convert')" :loading="action.busy.value" data-testid="polycart-convert" />
-            </form>
+            </UForm>
           </div>
         </UCard>
 
@@ -427,55 +423,43 @@ void Promise.all([client ? loadTypes(client) : null, load()])
             <p class="font-medium">{{ t('polycart.cart.lines') }}</p>
           </template>
 
-          <p v-if="(shown.lines ?? []).length === 0" class="text-sm text-muted" data-testid="polycart-no-lines">{{ t('polycart.cart.no_lines') }}</p>
+          <UTable :data="shown.lines ?? []" :columns="lineColumns" data-testid="polycart-lines">
+            <template #empty>
+              <UEmpty icon="i-lucide-package-open" :title="t('polycart.cart.no_lines')" size="xs" variant="naked" data-testid="polycart-no-lines" />
+            </template>
+            <template #item-cell="{ row }">
+              <span v-if="row.original.purchasable_type === null" class="flex items-center gap-2">
+                <UBadge color="neutral" variant="subtle" :label="t('polycart.cart.custom')" />
+                <span>{{ item(row.original) }}</span>
+              </span>
+              <span v-else class="font-mono">{{ item(row.original) }}</span>
+            </template>
+            <template #unit_price-cell="{ row }">
+              {{ polycartMoney(row.original.unit_price) }}
+            </template>
+            <template #quantity-cell="{ row }">
+              <UForm :state="quantities" class="flex items-center gap-2" data-testid="polycart-line-form" @submit="updateLine(row.original)">
+                <UInputNumber
+                  v-model="quantities[row.original.id]"
+                  :min="0"
+                  size="sm"
+                  class="w-28"
+                  :aria-label="t('polycart.cart.quantity')"
+                  data-testid="polycart-line-quantity"
+                />
+                <UButton type="submit" size="xs" variant="ghost" icon="i-lucide-check" :label="t('polycart.cart.update')" data-testid="polycart-line-update" />
+              </UForm>
+              <p v-if="editedLine === row.original.id && action.error('lines')" class="mt-1 text-xs text-error">{{ action.error('lines') }}</p>
+            </template>
+            <template #total-cell="{ row }">
+              {{ polycartMoney(row.original.total) }}
+            </template>
+            <template #remove-cell="{ row }">
+              <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-trash" :label="t('polycart.cart.remove')" data-testid="polycart-line-remove" @click="removeLine(row.original)" />
+            </template>
+          </UTable>
 
-          <template v-else>
-            <div class="overflow-x-auto">
-              <table class="w-full text-left text-sm">
-                <thead class="text-muted">
-                  <tr>
-                    <th class="px-3 py-2 font-medium">{{ t('polycart.cart.item') }}</th>
-                    <th class="px-3 py-2 text-right font-medium">{{ t('polycart.cart.unit_price') }}</th>
-                    <th class="px-3 py-2 font-medium">{{ t('polycart.cart.quantity') }}</th>
-                    <th class="px-3 py-2 text-right font-medium">{{ t('polycart.cart.total') }}</th>
-                    <th class="px-3 py-2"><span class="sr-only">{{ t('polycart.cart.remove') }}</span></th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-default">
-                  <tr v-for="line in shown.lines" :key="line.id" data-testid="polycart-line">
-                    <td class="px-3 py-2">
-                      <span v-if="line.purchasable_type === null" class="flex items-center gap-2">
-                        <UBadge color="neutral" variant="subtle" :label="t('polycart.cart.custom')" />
-                        <span>{{ item(line) }}</span>
-                      </span>
-                      <span v-else class="font-mono">{{ item(line) }}</span>
-                    </td>
-                    <td class="px-3 py-2 text-right tabular-nums">{{ polycartMoney(line.unit_price) }}</td>
-                    <td class="px-3 py-2">
-                      <form class="flex items-center gap-2" data-testid="polycart-line-form" @submit.prevent="updateLine(line)">
-                        <input
-                          v-model.number="quantities[line.id]"
-                          type="number"
-                          min="0"
-                          class="w-20 rounded-md border border-default bg-default px-2 py-1 text-sm"
-                          :aria-label="t('polycart.cart.quantity')"
-                          data-testid="polycart-line-quantity"
-                        >
-                        <UButton type="submit" size="xs" variant="ghost" icon="i-lucide-check" :label="t('polycart.cart.update')" data-testid="polycart-line-update" />
-                      </form>
-                      <p v-if="editedLine === line.id && action.error('lines')" class="mt-1 text-xs text-error">{{ action.error('lines') }}</p>
-                    </td>
-                    <td class="px-3 py-2 text-right tabular-nums">{{ polycartMoney(line.total) }}</td>
-                    <td class="px-3 py-2 text-right">
-                      <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-trash" :label="t('polycart.cart.remove')" data-testid="polycart-line-remove" @click="removeLine(line)" />
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <p v-if="shown.fully_priced === false" class="mt-3 text-sm text-warning" data-testid="polycart-unpriced">{{ t('polycart.cart.unpriced_lines') }}</p>
-          </template>
+          <p v-if="(shown.lines ?? []).length > 0 && shown.fully_priced === false" class="mt-3 text-sm text-warning" data-testid="polycart-unpriced">{{ t('polycart.cart.unpriced_lines') }}</p>
         </UCard>
 
         <UCard>
@@ -484,14 +468,12 @@ void Promise.all([client ? loadTypes(client) : null, load()])
           </template>
 
           <div class="flex flex-col gap-4">
-            <form class="flex items-end gap-2" data-testid="polycart-visibility-form" @submit.prevent="setVisibility">
-              <UFormField :label="t('polycart.cart.visible_to')" :error="action.error('visibility')">
-                <select v-model="visibility" class="w-72 rounded-md border border-default bg-default px-2.5 py-1.5 text-sm" data-testid="polycart-visibility">
-                  <option v-for="option in POLYCART_VISIBILITIES" :key="option" :value="option">{{ t(`polycart.visibility.${option}`) }}</option>
-                </select>
+            <UForm :state="{ visibility }" class="flex items-end gap-2" data-testid="polycart-visibility-form" @submit="setVisibility">
+              <UFormField :label="t('polycart.cart.visible_to')" name="visibility" :error="action.error('visibility')">
+                <USelect v-model="visibility" :items="visibilityItems" class="w-72" data-testid="polycart-visibility" />
               </UFormField>
               <UButton type="submit" variant="outline" icon="i-lucide-check" :label="t('polycart.cart.save')" data-testid="polycart-set-visibility" />
-            </form>
+            </UForm>
 
             <p v-if="(shown.members ?? []).length === 0" class="text-sm text-muted">{{ t('polycart.cart.no_members') }}</p>
 
@@ -505,18 +487,18 @@ void Promise.all([client ? loadTypes(client) : null, load()])
               </li>
             </ul>
 
-            <form v-if="shown.scope_type !== null" class="flex flex-wrap items-end gap-2" data-testid="polycart-share-form" @submit.prevent="shareCart">
-              <UFormField :label="t('polycart.cart.member_type')" :hint="t('polycart.cart.member_type_hint')" :error="action.error('member_type')">
+            <UForm v-if="shown.scope_type !== null" :state="share" class="flex flex-wrap items-end gap-2" data-testid="polycart-share-form" @submit="shareCart">
+              <UFormField :label="t('polycart.cart.member_type')" name="member_type" :hint="t('polycart.cart.member_type_hint')" :error="action.error('member_type')">
                 <UInput v-model="share.member_type" class="w-40" data-testid="polycart-share-type" />
               </UFormField>
-              <UFormField :label="t('polycart.cart.member_id')" :error="action.error('member_id')">
+              <UFormField :label="t('polycart.cart.member_id')" name="member_id" :error="action.error('member_id')">
                 <UInput v-model="share.member_id" class="w-32" data-testid="polycart-share-id" />
               </UFormField>
-              <UFormField :label="t('polycart.cart.role')" :error="action.error('role')">
+              <UFormField :label="t('polycart.cart.role')" name="role" :error="action.error('role')">
                 <UInput v-model="share.role" class="w-40" data-testid="polycart-share-role" />
               </UFormField>
               <UButton type="submit" icon="i-lucide-user-plus" :label="t('polycart.cart.share')" :loading="action.busy.value" data-testid="polycart-share" />
-            </form>
+            </UForm>
           </div>
         </UCard>
 
@@ -527,7 +509,7 @@ void Promise.all([client ? loadTypes(client) : null, load()])
           <ul class="flex flex-col gap-2">
             <li v-for="child in children" :key="child.id" class="flex items-center gap-2 text-sm" data-testid="polycart-child">
               <UBadge color="primary" variant="subtle" :label="child.type" />
-              <RouterLink :to="polycartCartPath(child.id)" class="underline-offset-2 hover:underline">{{ polycartCartTitle(child) }}</RouterLink>
+              <ULink :to="polycartCartPath(child.id)" class="underline-offset-2 hover:underline">{{ polycartCartTitle(child) }}</ULink>
             </li>
           </ul>
         </UCard>
@@ -536,17 +518,17 @@ void Promise.all([client ? loadTypes(client) : null, load()])
           <template #header>
             <p class="font-medium">{{ t('polycart.cart.details') }}</p>
           </template>
-          <form class="flex flex-col gap-3" data-testid="polycart-details-form" @submit.prevent="updateDetails">
-            <UFormField :label="t('polycart.cart.label')" :error="action.error('label')">
+          <UForm :state="details" class="flex flex-col gap-3" data-testid="polycart-details-form" @submit="updateDetails">
+            <UFormField :label="t('polycart.cart.label')" name="label" :error="action.error('label')">
               <UInput v-model="details.label" class="w-full" data-testid="polycart-details-label" />
             </UFormField>
-            <UFormField :label="t('polycart.cart.meta')" :error="metaError ?? action.error('meta')">
+            <UFormField :label="t('polycart.cart.meta')" name="meta" :error="metaError ?? action.error('meta')">
               <UTextarea v-model="details.meta" :rows="6" class="w-full font-mono" data-testid="polycart-details-meta" />
             </UFormField>
             <div>
               <UButton type="submit" icon="i-lucide-check" :label="t('polycart.cart.save')" :loading="action.busy.value" data-testid="polycart-update" />
             </div>
-          </form>
+          </UForm>
         </UCard>
       </template>
     </template>

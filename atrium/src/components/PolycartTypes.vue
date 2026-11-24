@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
 import { polycartData, polycartStatusColor, usePolycart, type PolycartType } from './polycart'
 
 /**
@@ -32,6 +33,15 @@ async function load(): Promise<void> {
   }
 }
 
+const columns = computed<TableColumn<PolycartType>[]>(() => [
+  { id: 'type', header: t('polycart.types.type') },
+  { id: 'statuses', header: t('polycart.types.statuses') },
+  { id: 'converts_to', header: t('polycart.types.converts_to') },
+  { id: 'parents', header: t('polycart.types.parents') },
+  { id: 'rules', header: t('polycart.types.rules') },
+  { id: 'lifetime', header: t('polycart.types.lifetime') }
+])
+
 function cartsOf(type: string) {
   return { path: '/polycart/carts', query: { type } }
 }
@@ -45,59 +55,46 @@ void load()
 
     <USkeleton v-else-if="!loaded" class="h-32" />
 
-    <div v-else-if="failed" class="flex items-center justify-between gap-3 rounded-md border border-default p-4 text-sm" role="alert" data-testid="polycart-load-error">
-      <span>{{ t('polycart.types.load_failed') }}</span>
+    <AtriumState v-else-if="failed" kind="error" :title="t('polycart.types.load_failed')" data-testid="polycart-load-error">
       <UButton size="sm" variant="outline" icon="i-lucide-refresh-cw" :label="t('polycart.retry')" data-testid="polycart-retry" @click="load()" />
-    </div>
+    </AtriumState>
 
-    <div v-else class="overflow-x-auto rounded-md border border-default">
-      <table class="w-full text-left text-sm" data-testid="polycart-types-table">
-        <thead class="bg-elevated text-muted">
-          <tr>
-            <th class="px-3 py-2 font-medium">{{ t('polycart.types.type') }}</th>
-            <th class="px-3 py-2 font-medium">{{ t('polycart.types.statuses') }}</th>
-            <th class="px-3 py-2 font-medium">{{ t('polycart.types.converts_to') }}</th>
-            <th class="px-3 py-2 font-medium">{{ t('polycart.types.parents') }}</th>
-            <th class="px-3 py-2 font-medium">{{ t('polycart.types.rules') }}</th>
-            <th class="px-3 py-2 font-medium">{{ t('polycart.types.lifetime') }}</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-default">
-          <tr v-for="type in types" :key="type.key" data-testid="polycart-type">
-            <td class="px-3 py-2">
-              <RouterLink :to="cartsOf(type.key)" class="font-medium underline-offset-2 hover:underline" data-testid="polycart-type-link">{{ type.key }}</RouterLink>
-            </td>
-            <td class="px-3 py-2">
-              <div v-if="type.statuses.length > 0" class="flex flex-wrap items-center gap-2">
-                <UBadge
-                  v-for="status in type.statuses"
-                  :key="status"
-                  :color="polycartStatusColor(status)"
-                  variant="subtle"
-                  :label="status"
-                  :data-status="status"
-                  data-testid="polycart-type-status"
-                />
-              </div>
-              <span v-else class="text-muted">—</span>
-            </td>
-            <td class="px-3 py-2">{{ type.converts_to.join(', ') || '—' }}</td>
-            <td class="px-3 py-2">
-              <template v-if="type.parents === null">{{ t('polycart.types.any') }}</template>
-              <template v-else-if="type.parents.length === 0">{{ t('polycart.types.root_only') }}</template>
-              <template v-else>{{ type.parents.join(', ') }}</template>
-            </td>
-            <td class="px-3 py-2">
-              <div class="flex flex-wrap gap-1">
-                <UBadge v-if="type.requires_price" color="warning" variant="subtle" :label="t('polycart.types.requires_price')" />
-                <UBadge v-if="type.requires_parent" color="primary" variant="subtle" :label="t('polycart.types.requires_parent')" />
-                <UBadge v-if="!type.merges_lines" color="neutral" variant="subtle" :label="t('polycart.types.separate_lines')" />
-              </div>
-            </td>
-            <td class="px-3 py-2">{{ type.lifetime ?? t('polycart.never') }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <UTable v-else :data="types" :columns="columns" class="rounded-md border border-default" data-testid="polycart-types-table">
+      <template #type-cell="{ row }">
+        <ULink :to="cartsOf(row.original.key)" class="font-medium underline-offset-2 hover:underline" data-testid="polycart-type-link">{{ row.original.key }}</ULink>
+      </template>
+      <template #statuses-cell="{ row }">
+        <div v-if="row.original.statuses.length > 0" class="flex flex-wrap items-center gap-2">
+          <UBadge
+            v-for="status in row.original.statuses"
+            :key="status"
+            :color="polycartStatusColor(status)"
+            variant="subtle"
+            :label="status"
+            :data-status="status"
+            data-testid="polycart-type-status"
+          />
+        </div>
+        <span v-else class="text-muted">—</span>
+      </template>
+      <template #converts_to-cell="{ row }">
+        {{ row.original.converts_to.join(', ') || '—' }}
+      </template>
+      <template #parents-cell="{ row }">
+        <template v-if="row.original.parents === null">{{ t('polycart.types.any') }}</template>
+        <template v-else-if="row.original.parents.length === 0">{{ t('polycart.types.root_only') }}</template>
+        <template v-else>{{ row.original.parents.join(', ') }}</template>
+      </template>
+      <template #rules-cell="{ row }">
+        <div class="flex flex-wrap gap-1">
+          <UBadge v-if="row.original.requires_price" color="warning" variant="subtle" :label="t('polycart.types.requires_price')" />
+          <UBadge v-if="row.original.requires_parent" color="primary" variant="subtle" :label="t('polycart.types.requires_parent')" />
+          <UBadge v-if="!row.original.merges_lines" color="neutral" variant="subtle" :label="t('polycart.types.separate_lines')" />
+        </div>
+      </template>
+      <template #lifetime-cell="{ row }">
+        {{ row.original.lifetime ?? t('polycart.never') }}
+      </template>
+    </UTable>
   </div>
 </template>

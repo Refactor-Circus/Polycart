@@ -3,7 +3,7 @@ import type { VueWrapper } from '@vue/test-utils'
 import TypesPage from '../src/pages/types.vue'
 import { settle } from '@refactor-circus/atrium/testing'
 import { mockPackageApi, mountIntegration, reply, resetPackageApis, type PackageCall, type PackageRoutes } from '@refactor-circus/atrium/testing'
-import { orderType, quoteType, requests, screenPayload } from './data'
+import { orderType, quoteType, requests, screenPayload, tableRows } from './data'
 import { clearAtriumData, mockAtriumApi } from '@refactor-circus/atrium/testing'
 
 /*
@@ -49,7 +49,7 @@ describe('polycart.types', () => {
 
     expect(calls.map(call => `${call.method} ${call.route}`)).toEqual(['GET /types'])
 
-    const rows = wrapper.findAll('[data-testid="polycart-type"]')
+    const rows = tableRows(wrapper, 'polycart-types-table')
     expect(rows).toHaveLength(2)
 
     const [order, quote] = rows
@@ -79,7 +79,7 @@ describe('polycart.types', () => {
     const wrapper = await mountPage()
 
     expect(wrapper.find('[data-testid="atrium-no-access"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="polycart-type"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="polycart-types-table"]').exists()).toBe(false)
   })
 
   it('offers a retry when the list fails otherwise', async () => {

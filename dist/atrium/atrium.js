@@ -1,28 +1,28 @@
 import { i as e, r as t } from "./chunks/polycart-pC5iCRim.js";
-import { UBadge as n, USkeleton as r } from "@refactor-circus/atrium/ui";
-import { AtriumErrorCard as i, AtriumNoAccess as a, defineAtriumModule as o, integrationData as s, mergeAtriumMessages as c, useAtriumIntegration as l, useIntegrationQuery as u } from "@refactor-circus/atrium";
-import { Fragment as d, computed as f, createBlock as p, createElementBlock as m, createElementVNode as h, createTextVNode as g, createVNode as _, defineComponent as v, openBlock as y, renderList as b, resolveComponent as x, toDisplayString as S, unref as C, withCtx as w } from "vue";
-import { useI18n as T } from "vue-i18n";
+import { UBadge as n, UButton as r, UEmpty as i, ULink as a, USkeleton as o } from "@refactor-circus/atrium/ui";
+import { AtriumErrorCard as s, AtriumNoAccess as c, defineAtriumModule as l, integrationData as u, mergeAtriumMessages as d, useAtriumIntegration as f, useIntegrationQuery as p } from "@refactor-circus/atrium";
+import { Fragment as m, computed as h, createBlock as g, createElementBlock as _, createElementVNode as v, createTextVNode as y, createVNode as b, defineComponent as x, openBlock as S, renderList as C, toDisplayString as w, unref as T, withCtx as E } from "vue";
+import { useI18n as D } from "vue-i18n";
 // src/components/usePolycartStats.ts
-function E() {
-	return u("polycart", "polycart.stats.show", async (e) => s(await e.GET("/stats")).data);
+function O() {
+	return p("polycart", "polycart.stats.show", async (e) => u(await e.GET("/stats")).data);
 }
 // src/components/PolycartCartsByType.vue?vue&type=script&setup=true&lang.ts
-var D = {
+var k = {
 	class: "flex flex-col gap-3",
 	"data-testid": "polycart-carts-by-type"
-}, O = { class: "text-sm font-medium" }, k = {
+}, A = { class: "text-sm font-medium" }, j = {
 	key: 3,
 	class: "flex flex-wrap gap-2"
-}, A = { class: "text-sm font-semibold tabular-nums" }, j = /* @__PURE__ */ v({
+}, M = { class: "text-sm font-semibold tabular-nums" }, N = /* @__PURE__ */ x({
 	__name: "PolycartCartsByType",
 	props: {
 		data: {},
 		settings: {}
 	},
 	setup(e) {
-		let { t } = T(), { data: o, status: s, forbidden: c } = E();
-		function l(e) {
+		let { t } = D(), { data: i, status: a, forbidden: l } = O();
+		function u(e) {
 			return {
 				path: "/polycart/carts",
 				query: {
@@ -31,89 +31,93 @@ var D = {
 				}
 			};
 		}
-		return (e, u) => {
-			let f = a, g = i, v = r, T = n, E = x("RouterLink");
-			return y(), m("div", D, [h("p", O, S(C(t)("polycart.widgets.carts_by_type")), 1), C(c) ? (y(), p(f, {
+		return (e, d) => {
+			let f = c, p = s, h = o, y = n, x = r;
+			return S(), _("div", k, [v("p", A, w(T(t)("polycart.widgets.carts_by_type")), 1), T(l) ? (S(), g(f, {
 				key: 0,
 				compact: ""
-			})) : C(s) === "error" ? (y(), p(g, {
+			})) : T(a) === "error" ? (S(), g(p, {
 				key: 1,
-				message: C(t)("atrium.widget.failed")
-			}, null, 8, ["message"])) : C(o) === null ? (y(), p(v, {
+				message: T(t)("atrium.widget.failed")
+			}, null, 8, ["message"])) : T(i) === null ? (S(), g(h, {
 				key: 2,
 				class: "h-10"
-			})) : (y(), m("div", k, [(y(!0), m(d, null, b(C(o).by_type, (e) => (y(), p(E, {
+			})) : (S(), _("div", j, [(S(!0), _(m, null, C(T(i).by_type, (e) => (S(), g(x, {
 				key: e.type,
-				to: l(e.type),
-				class: "flex items-center gap-2 rounded-md border border-default px-3 py-2 transition hover:bg-elevated",
+				to: u(e.type),
+				color: "neutral",
+				variant: "outline",
 				"data-testid": "polycart-type-count"
 			}, {
-				default: w(() => [_(T, {
+				default: E(() => [b(y, {
 					color: "primary",
 					variant: "subtle",
 					label: e.type
-				}, null, 8, ["label"]), h("span", A, S(e.count), 1)]),
+				}, null, 8, ["label"]), v("span", M, w(e.count), 1)]),
 				_: 2
 			}, 1032, ["to"]))), 128))]))]);
 		};
 	}
-}), M = {
+}), P = {
 	class: "flex flex-col gap-3",
 	"data-testid": "polycart-recent-carts"
-}, N = { class: "text-sm font-medium" }, P = {
-	key: 3,
-	class: "text-sm text-muted",
-	"data-testid": "polycart-no-recent-carts"
-}, F = {
+}, F = { class: "text-sm font-medium" }, I = {
 	key: 4,
 	class: "flex flex-col gap-2"
-}, I = { class: "flex min-w-0 items-center gap-2" }, L = { class: "shrink-0 text-muted" }, R = /* @__PURE__ */ v({
+}, L = { class: "flex min-w-0 items-center gap-2" }, R = { class: "shrink-0 text-muted" }, z = /* @__PURE__ */ x({
 	__name: "PolycartRecentCarts",
 	props: {
 		data: {},
 		settings: {}
 	},
-	setup(o) {
-		let { t: s, locale: c } = T(), { data: l, status: u, forbidden: v } = E(), D = f(() => new Intl.DateTimeFormat(c.value, {
+	setup(r) {
+		let { t: l, locale: u } = D(), { data: d, status: f, forbidden: p } = O(), x = h(() => new Intl.DateTimeFormat(u.value, {
 			dateStyle: "medium",
 			timeStyle: "short"
 		}));
-		function O(e) {
-			return e === null ? "" : D.value.format(new Date(e));
+		function k(e) {
+			return e === null ? "" : x.value.format(new Date(e));
 		}
-		return (o, c) => {
-			let f = a, T = i, E = r, D = n, k = x("RouterLink");
-			return y(), m("div", M, [h("p", N, S(C(s)("polycart.widgets.recent_carts")), 1), C(v) ? (y(), p(f, {
+		return (r, u) => {
+			let h = c, x = s, D = o, O = i, A = n, j = a;
+			return S(), _("div", P, [v("p", F, w(T(l)("polycart.widgets.recent_carts")), 1), T(p) ? (S(), g(h, {
 				key: 0,
 				compact: ""
-			})) : C(u) === "error" ? (y(), p(T, {
+			})) : T(f) === "error" ? (S(), g(x, {
 				key: 1,
-				message: C(s)("atrium.widget.failed")
-			}, null, 8, ["message"])) : C(l) === null ? (y(), p(E, {
+				message: T(l)("atrium.widget.failed")
+			}, null, 8, ["message"])) : T(d) === null ? (S(), g(D, {
 				key: 2,
 				class: "h-10"
-			})) : C(l).recent.length === 0 ? (y(), m("p", P, S(C(s)("polycart.widgets.no_carts")), 1)) : (y(), m("ul", F, [(y(!0), m(d, null, b(C(l).recent, (n) => (y(), m("li", {
+			})) : T(d).recent.length === 0 ? (S(), g(O, {
+				key: 3,
+				icon: "i-lucide-shopping-cart",
+				title: T(l)("polycart.widgets.no_carts"),
+				size: "xs",
+				variant: "naked",
+				"data-testid": "polycart-no-recent-carts"
+			}, null, 8, ["title"])) : (S(), _("ul", I, [(S(!0), _(m, null, C(T(d).recent, (n) => (S(), _("li", {
 				key: n.id,
 				class: "flex items-center justify-between gap-2 text-sm",
 				"data-testid": "polycart-recent-cart"
-			}, [h("span", I, [_(D, {
+			}, [v("span", L, [b(A, {
 				color: "primary",
 				variant: "subtle",
 				label: n.type
-			}, null, 8, ["label"]), _(k, {
-				to: C(t)(n.id),
+			}, null, 8, ["label"]), b(j, {
+				to: T(t)(n.id),
 				class: "truncate underline-offset-2 hover:underline"
 			}, {
-				default: w(() => [g(S(C(e)(n)), 1)]),
+				default: E(() => [y(w(T(e)(n)), 1)]),
 				_: 2
-			}, 1032, ["to"])]), h("span", L, S(C(s)("polycart.widgets.line_count", n.lines_count ?? 0)) + " · " + S(O(n.updated_at)), 1)]))), 128))]))]);
+			}, 1032, ["to"])]), v("span", R, w(T(l)("polycart.widgets.line_count", n.lines_count ?? 0)) + " · " + w(k(n.updated_at)), 1)]))), 128))]))]);
 		};
 	}
 });
 // src/components/search.ts
-async function z(n, { limit: r }) {
-	let { client: i } = l("polycart");
-	return i ? s(await i.GET("/search", { params: { query: {
+async function B(n, { limit: r }) {
+	let { client: i } = f("polycart");
+	return i ? u(await i.GET("/search", { params: { query: {
 		q: n,
 		per_page: r
 	} } })).data.slice(0, r).map((n) => ({
@@ -127,7 +131,7 @@ async function z(n, { limit: r }) {
 		}
 	})) : [];
 }
-var B = { polycart: {
+var V = { polycart: {
 	never: "Never",
 	guest: "Guest",
 	status_expired: "{status} (expired)",
@@ -240,35 +244,35 @@ var B = { polycart: {
 		no_carts: "No carts yet.",
 		line_count: "No lines | 1 line | {count} lines"
 	}
-} }, V = [
+} }, H = [
 	{
 		path: "/polycart/carts/:cart",
 		name: "polycart-carts-cart",
-		component: () => import("./chunks/_cart_-CNwpu-aj.js")
+		component: () => import("./chunks/_cart_-Cx0WTvu5.js")
 	},
 	{
 		path: "/polycart/carts",
 		name: "polycart-carts",
-		component: () => import("./chunks/carts-_IqDPmyh.js")
+		component: () => import("./chunks/carts-bFWSxWOt.js")
 	},
 	{
 		path: "/polycart/types",
 		name: "polycart-types",
-		component: () => import("./chunks/types-5dxHecl0.js")
+		component: () => import("./chunks/types-BgCgeIlO.js")
 	}
-], H = {
+], U = {
 	"polycart.carts": "polycart-carts",
 	"polycart.cart": "polycart-carts-cart",
 	"polycart.types": "polycart-types"
-}, U = o({
+}, W = l({
 	key: "polycart",
-	routes: V,
-	screens: H,
+	routes: H,
+	screens: U,
 	widgets: {
-		"polycart.carts-by-type": j,
-		"polycart.recent-carts": R
+		"polycart.carts-by-type": N,
+		"polycart.recent-carts": z
 	},
-	searchSources: { polycart: z },
-	messages: { en: c(B) }
+	searchSources: { polycart: B },
+	messages: { en: d(V) }
 });
-export { U as default, H as screens };
+export { W as default, U as screens };

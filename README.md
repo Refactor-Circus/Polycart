@@ -488,6 +488,7 @@ Polycart ships its front end for [Atrium v2](https://github.com/Refactor-Circus/
 - `atrium/src/integration.json` is the module's integration manifest: what Polycart adds to Atrium's shell, as static JSON with no PHP. It declares the Pennant feature the integration needs, the *Carts* and *Cart types* navigation items, the two dashboard widgets, the carts search source and the carts, cart and cart types screens. The build validates it against Atrium's schema and writes it to `dist/atrium/integration.json`, which `extra.atrium.integration` points at; Atrium reads it there when it registers the integration. To change what Polycart declares, edit `atrium/src/integration.json` and rebuild (below).
 - `dist/atrium/` holds the built module and is committed, so hosts never run Node. Its sources, in `atrium/` (Vue, typed by `client/src/schema.d.ts`), are left out of the Composer dist.
 - The module calls the JSON API, so it needs `polycart.routes.enabled` on, behind your auth middleware.
+- The module's components compose Nuxt UI (Atrium's `@refactor-circus/atrium/ui`) and the SDK's `Atrium*` components, with no raw buttons, fields, tables or links; `atrium/test/nuxt-ui-guard.test.ts` enforces it.
 
 To rebuild it after changing `atrium/` (the manifest included) or the client, with pnpm 10 and Node 20 or later:
 

@@ -26,16 +26,17 @@ function cartsOf(type: string) {
     <USkeleton v-else-if="stats === null" class="h-10" />
 
     <div v-else class="flex flex-wrap gap-2">
-      <RouterLink
+      <UButton
         v-for="entry in stats.by_type"
         :key="entry.type"
         :to="cartsOf(entry.type)"
-        class="flex items-center gap-2 rounded-md border border-default px-3 py-2 transition hover:bg-elevated"
+        color="neutral"
+        variant="outline"
         data-testid="polycart-type-count"
       >
         <UBadge color="primary" variant="subtle" :label="entry.type" />
         <span class="text-sm font-semibold tabular-nums">{{ entry.count }}</span>
-      </RouterLink>
+      </UButton>
     </div>
   </div>
 </template>

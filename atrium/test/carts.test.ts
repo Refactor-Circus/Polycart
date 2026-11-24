@@ -3,7 +3,7 @@ import type { VueWrapper } from '@vue/test-utils'
 import CartsPage from '../src/pages/carts/index.vue'
 import { settle } from '@refactor-circus/atrium/testing'
 import { mockPackageApi, mountIntegration, reply, resetPackageApis, type PackageCall, type PackageRoutes } from '@refactor-circus/atrium/testing'
-import { cart, childCart, control, cursorPage, guestCart, orderType, quoteType, requests, screenPayload } from './data'
+import { cart, childCart, control, cursorPage, guestCart, orderType, quoteType, requests, screenPayload, select, selected, selectItems, tableRows } from './data'
 import { clearAtriumData, mockAtriumApi, useRouter } from '@refactor-circus/atrium/testing'
 
 /*
@@ -58,7 +58,7 @@ describe('loading', () => {
     expect(requests(calls, 'GET', '/types')).toHaveLength(1)
     expect(calls.every(call => call.pkg === 'polycart')).toBe(true)
 
-    const rows = wrapper.findAll('[data-testid="polycart-cart-row"]')
+    const rows = tableRows(wrapper, 'polycart-carts-table')
     expect(rows).toHaveLength(2)
     expect(rows[0]!.text()).toContain('Spring order')
     expect(rows[0]!.text()).toContain('order')
@@ -79,7 +79,7 @@ describe('loading', () => {
     polycart({ 'GET /carts': cursorPage([{ ...guestCart, status: 'open' }]) })
     const wrapper = await mountPage()
 
-    const row = wrapper.find('[data-testid="polycart-cart-row"]')
+    const row = tableRows(wrapper, 'polycart-carts-table')[0]!
     expect(row.text()).toContain('Guest')
     expect(row.text()).toContain(guestCart.id)
     expect(row.find('[data-testid="polycart-cart-status"]').attributes('data-color')).toBe('neutral')
@@ -99,15 +99,16 @@ describe('filters', () => {
     polycart()
     const wrapper = await mountPage()
 
-    const options = control(wrapper, 'polycart-filter-type').findAll('option').map(option => [option.element.value, option.text()])
-    expect(options).toEqual([['', 'All types'], ['order', 'order'], ['quote', 'quote']])
+    const options = selectItems(wrapper, 'polycart-filter-type').map(option => [option.value, option.label])
+    // "All types" stands for no filter: a select item's value cannot be empty.
+    expect(options).toEqual([['*', 'All types'], ['order', 'order'], ['quote', 'quote']])
   })
 
   it('sends the type, status, source and search filters as carts.index query parameters', async () => {
     const calls = polycart()
     const wrapper = await mountPage()
 
-    await control(wrapper, 'polycart-filter-type').setValue('order')
+    await select(wrapper, 'polycart-filter-type').setValue('order')
     await control(wrapper, 'polycart-filter-status').setValue('open')
     await control(wrapper, 'polycart-filter-source').setValue('api')
     await control(wrapper, 'polycart-filter-search').setValue('spring')
@@ -125,7 +126,7 @@ describe('filters', () => {
     const wrapper = await mountPage({ type: 'quote', unexpired: '1' })
 
     expect(requests(calls, 'GET', '/carts')[0]!.query).toEqual({ type: 'quote', unexpired: '1' })
-    expect((control(wrapper, 'polycart-filter-type').element as unknown as HTMLSelectElement).value).toBe('quote')
+    expect(selected(wrapper, 'polycart-filter-type')).toBe('quote')
   })
 
   it('resets every filter', async () => {
@@ -151,7 +152,7 @@ describe('paging', () => {
     await settle()
 
     expect(requests(calls, 'GET', '/carts')[1]!.query).toEqual({ cursor: 'page-2' })
-    expect(wrapper.findAll('[data-testid="polycart-cart-row"]')).toHaveLength(1)
+    expect(tableRows(wrapper, 'polycart-carts-table')).toHaveLength(1)
 
     await wrapper.find('[data-testid="polycart-prev"]').trigger('click')
     await settle()

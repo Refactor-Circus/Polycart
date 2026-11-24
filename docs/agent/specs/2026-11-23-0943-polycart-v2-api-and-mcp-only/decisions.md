@@ -113,3 +113,9 @@
 - Rationale: The user said "move the php declarations": each package owns its Atrium integration declaration, which Atrium used to hold in PHP.
 - Date: 2026-11-24
 - Raised by: user
+
+## D-020: Is Polycart's Atrium module built from Nuxt UI?
+- Choice: Yes, as Atrium's own components are (Atrium D-091). Every page and widget under `atrium/src` composes Nuxt UI and the SDK: the carts, cart types and cart lines tables are `UTable`s (TanStack column defs, cell slots, numeric columns right-aligned through `meta.class`, the empty state a `UEmpty` in the `empty` slot), the filter bar and every cart action a `UForm` with `UFormField`s, the type, move, convert and visibility pickers `USelect`s (the type filter's "All types" is the item `*`, since a select item cannot be empty), a line's quantity a `UInputNumber`, "keep the original" a `UCheckbox`, the cart's heading a `UPageHeader`, its figures `AtriumStat`s, not-found and load failures `AtriumState`s, the widgets' links `ULink` / `UButton to`. Behaviour, routes, API calls and strings are unchanged; the row test ids (`polycart-cart-row`, `polycart-type`, `polycart-line`) give way to the table's (`polycart-carts-table`, `polycart-types-table`, `polycart-lines`), whose data rows the tests read. `atrium/test/nuxt-ui-guard.test.ts` fails on a raw `<button>`, `<input>`, `<select>`, `<textarea>`, `<table>`, `<details>` or `<a href>` in any `atrium/src` `.vue` file, as Atrium's guard does. The SDK pin moves to f6d6f83.
+- Rationale: The user asked to "convert raw html": every Atrium UI is built on Nuxt UI 4, and the modules were the last to render raw HTML.
+- Date: 2026-11-24
+- Raised by: user

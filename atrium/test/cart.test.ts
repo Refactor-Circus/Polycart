@@ -4,7 +4,7 @@ import CartPage from '../src/pages/carts/[cart].vue'
 import PolycartCart from '../src/components/PolycartCart.vue'
 import { settle } from '@refactor-circus/atrium/testing'
 import { integrationEntry, integrationShell, mockPackageApi, mountIntegration, reply, resetPackageApis, useShell, type PackageCall, type PackageRoutes } from '@refactor-circus/atrium/testing'
-import { CART_ID, CHILD_ID, PARENT_ID, cart, childCart, control, cursorPage, member, orderType, productLine, quoteType, requests, screenPayload } from './data'
+import { CART_ID, CHILD_ID, PARENT_ID, cart, childCart, control, cursorPage, member, orderType, productLine, quoteType, requests, screenPayload, select, selected, selectValues, tableRows } from './data'
 import { clearAtriumData, mockAtriumApi, useRouter } from '@refactor-circus/atrium/testing'
 
 /*
@@ -95,7 +95,7 @@ describe('loading', () => {
     expect(wrapper.text()).toContain('User #7')
     expect(wrapper.text()).toContain('Team #3')
 
-    const lines = wrapper.findAll('[data-testid="polycart-line"]')
+    const lines = tableRows(wrapper, 'polycart-lines')
     expect(lines).toHaveLength(2)
     expect(lines[0]!.text()).toContain('Product #12')
     expect(lines[0]!.text()).toContain('15.00')
@@ -117,8 +117,8 @@ describe('loading', () => {
     polycart()
     const wrapper = await mountCart()
 
-    const moves = control(wrapper, 'polycart-transition-status').findAll('option').map(option => option.element.value)
-    const conversions = control(wrapper, 'polycart-convert-to').findAll('option').map(option => option.element.value)
+    const moves = selectValues(wrapper, 'polycart-transition-status')
+    const conversions = selectValues(wrapper, 'polycart-convert-to')
 
     expect(moves).toEqual(['submitted', 'cancelled'])
     expect(conversions).toEqual(['quote'])
@@ -244,7 +244,7 @@ describe('cart actions', () => {
     const calls = polycart()
     const wrapper = await mountCart()
 
-    await control(wrapper, 'polycart-transition-status').setValue('cancelled')
+    await select(wrapper, 'polycart-transition-status').setValue('cancelled')
     await submit(wrapper, 'polycart-transition-form')
 
     expect(requests(calls, 'POST', '/carts/{cart}/status').map(call => [call.path, call.body])).toEqual([[`/carts/${CART_ID}/status`, { status: 'cancelled' }]])
@@ -274,7 +274,7 @@ describe('cart actions', () => {
     const calls = polycart({ 'POST /carts/{cart}/convert': reply(201, { data: { ...cart, type: 'quote' } }) })
     const wrapper = await mountCart()
 
-    await control(wrapper, 'polycart-convert-copy').setValue(false)
+    await wrapper.find('[data-testid="polycart-convert-copy"]').trigger('click')
     await submit(wrapper, 'polycart-convert-form')
 
     expect(requests(calls, 'POST', '/carts/{cart}/convert')[0]!.body).toEqual({ to: 'quote', copy: false })
@@ -285,9 +285,9 @@ describe('cart actions', () => {
     const calls = polycart()
     const wrapper = await mountCart()
 
-    expect((control(wrapper, 'polycart-visibility').element as unknown as HTMLSelectElement).value).toBe('private')
+    expect(selected(wrapper, 'polycart-visibility')).toBe('private')
 
-    await control(wrapper, 'polycart-visibility').setValue('boundary')
+    await select(wrapper, 'polycart-visibility').setValue('boundary')
     await submit(wrapper, 'polycart-visibility-form')
 
     expect(requests(calls, 'PUT', '/carts/{cart}/visibility').map(call => [call.path, call.body])).toEqual([[`/carts/${CART_ID}/visibility`, { visibility: 'boundary' }]])
@@ -300,8 +300,10 @@ describe('line actions', () => {
     const calls = polycart()
     const wrapper = await mountCart()
 
-    const line = wrapper.findAll('[data-testid="polycart-line"]')[0]!
+    const line = tableRows(wrapper, 'polycart-lines')[0]!
+    // A number field commits what is typed when it loses focus.
     await line.find('[data-testid="polycart-line-quantity"]').setValue('5')
+    await line.find('[data-testid="polycart-line-quantity"]').trigger('blur')
     await line.find('[data-testid="polycart-line-form"]').trigger('submit')
     await settle()
 
@@ -315,18 +317,18 @@ describe('line actions', () => {
     polycart({ 'PATCH /carts/{cart}/lines': reply(422, { message: 'Invalid.', errors: { 'lines.0.quantity': ['The quantity must be at least 0.'] } }) })
     const wrapper = await mountCart()
 
-    const line = wrapper.findAll('[data-testid="polycart-line"]')[0]!
+    const line = tableRows(wrapper, 'polycart-lines')[0]!
     await line.find('[data-testid="polycart-line-form"]').trigger('submit')
     await settle()
 
-    expect(wrapper.findAll('[data-testid="polycart-line"]')[0]!.text()).toContain('The quantity must be at least 0.')
+    expect(tableRows(wrapper, 'polycart-lines')[0]!.text()).toContain('The quantity must be at least 0.')
   })
 
   it('removes a line', async () => {
     const calls = polycart()
     const wrapper = await mountCart()
 
-    await wrapper.findAll('[data-testid="polycart-line"]')[0]!.find('[data-testid="polycart-line-remove"]').trigger('click')
+    await tableRows(wrapper, 'polycart-lines')[0]!.find('[data-testid="polycart-line-remove"]').trigger('click')
     await settle()
 
     const [remove] = requests(calls, 'DELETE', '/carts/{cart}/lines')
