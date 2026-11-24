@@ -24,11 +24,11 @@ Your code never branches on the key.
 
 ## API + MCP
 
-Polycart is a Laravel package with two surfaces on top of its PHP API: a **JSON API** and an **MCP server**. Both call the same action classes, so a front end and an agent see exactly the same carts and rules. Polycart ships no UI of its own.
+Polycart is a Laravel package with two surfaces on top of its PHP API: a **JSON API** and an **MCP server**. Both call the same action classes, so a front end and an agent see exactly the same carts and rules. Polycart ships no PHP UI; its only front end is its [Atrium module](#the-atrium-module), plain JavaScript.
 
 - The [JSON API](#json-api) is described by a committed OpenAPI document, [`openapi.json`](openapi.json), and called from TypeScript through a generated client, `@refactor-circus/polycart-client` (see [OpenAPI and the TypeScript client](#openapi-and-the-typescript-client)).
 - The [MCP server](#mcp-server) offers the same operations as tools, and [Cortex](#cortex) agents can use them.
-- [Atrium v2](https://github.com/Refactor-Circus/Atrium), the suite's dashboard, is the optional UI. It is a separate package that reads and changes carts through this JSON API and the client, so it needs `polycart.routes.enabled` on, behind your auth middleware (see [Enabling the API](#enabling-the-api)).
+- [Atrium v2](https://github.com/Refactor-Circus/Atrium), the suite's dashboard, is the optional UI. It is a separate package that loads Polycart's [Atrium module](#the-atrium-module), whose pages read and change carts through this JSON API and the client, so it needs `polycart.routes.enabled` on, behind your auth middleware (see [Enabling the API](#enabling-the-api)).
 
 ## Installation
 
@@ -445,7 +445,7 @@ With `polycart.authorization` on, both endpoints answer `401` to a guest and `40
 
 The JSON API is described by [`openapi.json`](openapi.json) at the package root, an OpenAPI document with one operation for every `polycart.*` route, `polycart.stats.show` and `polycart.search.index` included. Its paths are relative to the routes' prefix (`/polycart` by default).
 
-The [`client/`](client) folder holds `@refactor-circus/polycart-client`, a typed fetch client generated from that document with [openapi-typescript](https://openapi-ts.dev/) and [openapi-fetch](https://openapi-ts.dev/openapi-fetch/). It ships as TypeScript source with no build step, so your bundler compiles it (Atrium v2's Nuxt layer does). It is not published to npm: install it as a git dependency on the release tag, with a package manager that installs a subfolder of a repository, such as pnpm:
+The [`client/`](client) folder holds `@refactor-circus/polycart-client`, a typed fetch client generated from that document with [openapi-typescript](https://openapi-ts.dev/) and [openapi-fetch](https://openapi-ts.dev/openapi-fetch/). It ships as TypeScript source with no build step, so your bundler compiles it (Polycart's own Atrium module does). It is not published to npm: install it as a git dependency on the release tag, with a package manager that installs a subfolder of a repository, such as pnpm:
 
 ```json
 {
@@ -479,6 +479,24 @@ composer client:generate
 ```
 
 It exports `openapi.json` with `php vendor/bin/testbench workbench:openapi openapi.json` (against an in-memory database, so the output is the same on every machine), runs `npm --prefix client ci`, then `npm --prefix client run generate`, which writes `client/src/schema.d.ts` and `client/openapi.sha256` (the SHA-256 of `openapi.json`). Commit all three. `tests/Feature/OpenApiTest.php` fails while `openapi.json` differs from a fresh export or the client's stamp does not match it, and the CI `client` job regenerates everything, fails on any diff and type-checks the client.
+
+## The Atrium module
+
+Polycart ships its front end for [Atrium v2](https://github.com/Refactor-Circus/Atrium) as an Atrium module: the carts, cart and cart types pages, the *Carts by type* and *Recent carts* dashboard widgets and the carts search source. It is JavaScript only, with no PHP: Polycart neither requires nor suggests Atrium, and nothing under `src/` names it.
+
+- `composer.json` declares the module under `extra.atrium` (key `polycart`, script `dist/atrium/atrium.js`, stylesheet `dist/atrium/atrium.css`). When Atrium is installed, it discovers the module and injects the script into its page while the Polycart integration is active; without Atrium nothing reads it.
+- `dist/atrium/` holds the built module and is committed, so hosts never run Node. Its sources, in `atrium/` (Vue, typed by `client/src/schema.d.ts`), are left out of the Composer dist.
+- The module calls the JSON API, so it needs `polycart.routes.enabled` on, behind your auth middleware.
+
+To rebuild it after changing `atrium/` or the client, with pnpm 10 and Node 20 or later:
+
+```bash
+cd atrium
+pnpm install
+pnpm typecheck && pnpm test && pnpm build
+```
+
+Commit `dist/atrium/`. `tests/Feature/AtriumModuleTest.php` fails when the committed build is older than its sources, and the CI `ui` job rebuilds the module and fails on any difference.
 
 ## MCP server
 
@@ -576,7 +594,7 @@ The code is organised into domain modules under `src/Domains/{Domain}` (`Refacto
 | `Sharing` | `CartMemberModel`, sharing and visibility, `CartAccess` |
 | `Scope` | `CartPathModel`, the `ScopeTree`, `CartScope` and `CartParticipant` |
 
-Polycart stands on [refactor-circus/keystone](https://github.com/Refactor-Circus/Keystone), the runtime the Refactor Circus packages share: its HTTP and MCP request bases, MCP tool and server bases, authorizer, Cortex integration, event contracts and model-event trait are used as they are. Cross-domain code stays outside the domains: the `Polycart` entry point and facade, `Mcp\Request` (Keystone's MCP request plus the `cortex` surface for agent calls and line reason codes), the MCP server and its history tool, and `Support/` (morph lookups, table names and the base policy). Polycart ships no views, translations or UI; the OpenAPI document and the TypeScript client (`client/`) sit beside the PHP code. Domain providers extend Keystone's `ServiceProvider` directly. Each change's history is refactor-circus/keen's, read through Keystone's `AuditTrail`.
+Polycart stands on [refactor-circus/keystone](https://github.com/Refactor-Circus/Keystone), the runtime the Refactor Circus packages share: its HTTP and MCP request bases, MCP tool and server bases, authorizer, Cortex integration, event contracts and model-event trait are used as they are. Cross-domain code stays outside the domains: the `Polycart` entry point and facade, `Mcp\Request` (Keystone's MCP request plus the `cortex` surface for agent calls and line reason codes), the MCP server and its history tool, and `Support/` (morph lookups, table names and the base policy). Polycart ships no views, translations or PHP UI; the OpenAPI document, the TypeScript client (`client/`) and the Atrium module (`atrium/` sources, `dist/atrium/` build) sit beside the PHP code. Domain providers extend Keystone's `ServiceProvider` directly. Each change's history is refactor-circus/keen's, read through Keystone's `AuditTrail`.
 
 ## Testing
 

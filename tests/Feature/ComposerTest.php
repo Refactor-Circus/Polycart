@@ -45,8 +45,13 @@ it('has no repository for Atrium or PennantPlus', function (): void {
         ->and(preg_grep('/atrium|pennantplus/i', $urls))->toBe([]);
 });
 
-it('declares no Atrium plugin in extra', function (): void {
-    expect(composerSection('extra'))->not->toHaveKey('atrium');
+it('declares only its JavaScript Atrium module in extra, with no PHP plugin', function (): void {
+    expect(composerSection('extra')['atrium'] ?? null)->toBe([
+        'key' => 'polycart',
+        'scripts' => ['dist/atrium/atrium.js'],
+        'styles' => ['dist/atrium/atrium.css'],
+    ])
+        ->and(json_encode(composerSection('extra')['laravel'] ?? []))->not->toContain('Atrium');
 });
 
 it('has no WithoutAtrium suite in its scripts', function (): void {

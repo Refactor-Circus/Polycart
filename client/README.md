@@ -6,8 +6,8 @@ by [openapi-typescript](https://openapi-ts.dev/) from the package's committed
 [openapi-fetch](https://openapi-ts.dev/openapi-fetch/)'s `createClient<paths>`.
 
 The package ships TypeScript source only, with no build step: its `exports`
-point at `src/index.ts`, so the consumer's bundler (Atrium v2's Nuxt layer, for
-example) compiles it.
+point at `src/index.ts`, so the consumer's bundler (Polycart's Atrium module in
+`../atrium`, for example) compiles it.
 
 ## Usage
 

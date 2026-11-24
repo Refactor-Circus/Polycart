@@ -50,22 +50,58 @@ function testbenchYaml(): array
     return $yaml;
 }
 
-it('mentions Atrium nowhere in the package, its workbench or its build files', function (): void {
+it('mentions Atrium nowhere in the PHP package, its workbench or its build files', function (): void {
     $root = dirname(__DIR__, 2);
 
-    $paths = ['src', 'config', 'database', 'workbench', 'testbench.yaml', 'composer.json', 'phpunit.xml.dist', '.gitattributes', '.github'];
+    // The Atrium module is JavaScript (atrium/, dist/atrium/) and is allowed to
+    // name Atrium where it is declared, shipped and built: composer.json's
+    // extra.atrium block, the /atrium export-ignore and the ui workflow.
+    $paths = ['src', 'config', 'database', 'workbench', 'testbench.yaml', 'phpunit.xml.dist', '.github'];
+    $allowed = ['.github/workflows/ui.yml'];
 
     $mentions = [];
 
     foreach ($paths as $path) {
         foreach (packageFiles($path) as $file) {
+            if (in_array($file, $allowed, true)) {
+                continue;
+            }
+
             if (stripos($file, 'atrium') !== false || stripos((string) file_get_contents($root.'/'.$file), 'atrium') !== false) {
                 $mentions[] = $file;
             }
         }
     }
 
+    /** @var array<string, mixed> $composer */
+    $composer = json_decode((string) file_get_contents($root.'/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+
+    /** @var array<string, mixed> $extra */
+    $extra = $composer['extra'];
+    unset($extra['atrium']);
+    $composer['extra'] = $extra;
+
+    if (stripos((string) json_encode($composer), 'atrium') !== false) {
+        $mentions[] = 'composer.json';
+    }
+
+    $attributes = array_filter(
+        file($root.'/.gitattributes', FILE_IGNORE_NEW_LINES) ?: [],
+        fn (string $line): bool => preg_match('#^/atrium\s+export-ignore$#', $line) !== 1,
+    );
+
+    if (stripos(implode("\n", $attributes), 'atrium') !== false) {
+        $mentions[] = '.gitattributes';
+    }
+
     expect($mentions)->toBe([]);
+});
+
+it('runs the Atrium module only in the ui workflow, never in the PHP test workflow', function (): void {
+    $workflow = (string) file_get_contents(dirname(__DIR__, 2).'/.github/workflows/tests.yml');
+
+    expect(stripos($workflow, 'atrium'))->toBeFalse()
+        ->and(stripos($workflow, 'pnpm'))->toBeFalse();
 });
 
 it('has no WithoutAtrium suite or CI lane', function (): void {

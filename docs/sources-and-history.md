@@ -122,7 +122,7 @@ Carts can still be listed by source: `CartModel::query()->fromSource('mcp')`, `G
 
 ## In a front end
 
-Polycart ships no UI. A front end, such as Atrium v2, shows a cart's `source` from the cart payload and its history from `GET /polycart/history?subject_type=...&subject_id=...`, through the OpenAPI document and the TypeScript client (see the README's "OpenAPI and the TypeScript client"). That needs `polycart.routes.enabled` on, behind your auth middleware, and the history route answers only while Polycart audits.
+Polycart ships no PHP UI. A front end, such as Atrium v2 with Polycart's Atrium module, shows a cart's `source` from the cart payload and its history from `GET /polycart/history?subject_type=...&subject_id=...`, through the OpenAPI document and the TypeScript client (see the README's "OpenAPI and the TypeScript client"). That needs `polycart.routes.enabled` on, behind your auth middleware, and the history route answers only while Polycart audits.
 
 ## Upgrading from the activity log
 

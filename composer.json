@@ -122,6 +122,15 @@
         },
         "branch-alias": {
             "dev-main": "2.0.x-dev"
+        },
+        "atrium": {
+            "key": "polycart",
+            "scripts": [
+                "dist/atrium/atrium.js"
+            ],
+            "styles": [
+                "dist/atrium/atrium.css"
+            ]
         }
     },
     "config": {

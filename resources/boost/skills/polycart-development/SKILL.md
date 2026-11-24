@@ -78,7 +78,7 @@ To rename tables, set `polycart.tables` (`carts`, `cart_paths`, `cart_members`, 
 
 ### 7. Expose carts over the JSON API and MCP (optional)
 
-Polycart is API plus MCP, with no UI of its own. Atrium v2 is the optional UI: a separate package that calls the JSON API, so it needs the API on.
+Polycart is API plus MCP, with no PHP UI. Atrium v2 is the optional UI: a separate package that loads Polycart's Atrium module (JavaScript built into `dist/atrium/`, declared in `composer.json`'s `extra.atrium`), whose pages call the JSON API, so it needs the API on.
 
 - JSON API: it is off by default. Set `polycart.routes.enabled` to `true` and put your auth middleware in `polycart.routes.middleware` (e.g. `['api', 'auth:sanctum']`). With it off, no route is registered.
 - List the models callers may name in `polycart.owners`, `polycart.scopes` and `polycart.purchasables`, keyed by alias.

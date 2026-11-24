@@ -101,3 +101,9 @@
 - Rationale: The user said "i'd like everything release as v2 to match". This supersedes any earlier choice to keep `^0.1` constraints or release Keystone as v0.2.0.
 - Date: 2026-11-23
 - Raised by: user
+
+## D-018: Who owns Polycart's Atrium front end?
+- Choice: Polycart does. Its Atrium module (the Vue pages, widgets and search source Atrium phase 1 staged in `ui/modules/polycart`) moves into `atrium/`, built with the Atrium SDK's Vite preset into the committed `dist/atrium/` and declared in `composer.json`'s `extra.atrium`; Atrium injects the script into its Blade page. The module types its calls with the package's own `client/src/schema.d.ts` (no vendored copy). Polycart still has no PHP dependency on Atrium: no `RefactorCircus\Atrium` class, no require/suggest; `NoAtriumTest` is narrowed to allow only the `extra.atrium` block, the `/atrium` export-ignore and the `ui` workflow. `tests/Feature/AtriumModuleTest.php` checks the declaration and the build's source hash; the CI `ui` job rebuilds and diffs. Polycart still ships no PHP UI.
+- Rationale: The user said "move the vue files for each module back into their respective modules. modules need to register their js. js should be injected into the blade file. modules are responsible for their own frontend and cjs clients from now on".
+- Date: 2026-11-24
+- Raised by: user

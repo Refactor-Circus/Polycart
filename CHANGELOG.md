@@ -4,7 +4,7 @@
 
 ## [v2.0.0](https://github.com/Refactor-Circus/Polycart/compare/v0.1.0...v2.0.0) - 2026-11-23
 
-Polycart is now a JSON API and an MCP server, with no UI of its own. Atrium v2 is the optional UI: it reads and changes carts through the JSON API and the new TypeScript client.
+Polycart is now a JSON API and an MCP server, with no PHP UI of its own. Atrium v2 is the optional UI: it loads Polycart's new Atrium module, whose pages read and change carts through the JSON API and the new TypeScript client.
 
 ### Upgrading
 
@@ -15,7 +15,7 @@ Polycart is now a JSON API and an MCP server, with no UI of its own. Atrium v2 i
 
 ### Breaking
 
-- **The Atrium UI is removed.** `src/Atrium` is gone with everything in it: the Atrium plugin and its Carts and Cart types pages, the *Carts by type* and *Recent carts* widgets, the Atrium search source, the screen extensions screens (`polycart.carts`, `polycart.cart`, `polycart.types`) and `CartTypeRow`, `ScreenAccess`, `Badges`, the dashboard operators, and `PolycartSupportFeature`. `PolycartServiceProvider` no longer registers an Atrium plugin. The pages, widgets, search, operators and the Pennant switch now belong to Atrium v2.
+- **The Atrium UI is removed.** `src/Atrium` is gone with everything in it: the Atrium plugin and its Carts and Cart types pages, the *Carts by type* and *Recent carts* widgets, the Atrium search source, the screen extensions screens (`polycart.carts`, `polycart.cart`, `polycart.types`) and `CartTypeRow`, `ScreenAccess`, `Badges`, the dashboard operators, and `PolycartSupportFeature`. `PolycartServiceProvider` no longer registers an Atrium plugin. The pages, widgets and search now live in Polycart's Atrium module (JavaScript, see Added); the operators and the Pennant switch belong to Atrium v2.
 - **Config keys removed:** `polycart.ui` (`ui.enabled`) and `polycart.atrium` (`atrium.show_all`, `atrium.features`).
 - **The `polycart-views` and `polycart-lang` publish tags are removed**, and the `polycart` tag publishes only the config and the migrations. Polycart no longer loads a `polycart::` view namespace.
 - **The translations are removed** (`lang/`), with the `polycart::` translation namespace; every string in them belonged to the Atrium pages.
@@ -29,6 +29,7 @@ Polycart is now a JSON API and an MCP server, with no UI of its own. Atrium v2 i
 - `GET {prefix}/search?q=`, named `polycart.search.index`: the carts the caller can access whose label contains `q` or whose id starts with it, in the same shape and order as `polycart.carts.index` (newest first, cursor paged with `per_page` and `cursor`). A missing, empty or over-long `q` answers `422`. Atrium v1's search ordered by most recently updated; this one orders newest-created first.
 - The `cart-stats` MCP tool, returning the stats payload under `data`, offered to Cortex like every other tool.
 - `openapi.json`, a committed OpenAPI document of every `polycart.*` route, exported by the workbench command `php vendor/bin/testbench workbench:openapi` (dedoc/scramble, dev only).
+- **Polycart ships its Atrium module**: the carts, cart and cart types pages, the *Carts by type* and *Recent carts* widgets and the carts search source, as JavaScript built into the committed `dist/atrium/` (sources in `atrium/`, left out of the Composer dist) and declared in `composer.json`'s `extra.atrium`. Atrium v2 discovers it and injects it into its page; Polycart still has no PHP dependency on Atrium.
 - `client/`, the TypeScript client `@refactor-circus/polycart-client` (v2.0.0): `createPolycartClient(options)` around openapi-fetch, typed from `openapi.json` and shipped as TypeScript source. Install it as a git dependency on the `v2.0.0` tag. `composer client:generate` regenerates `openapi.json` and the client; `tests/Feature/OpenApiTest.php` and a CI `client` job fail when either is stale.
 
 ## [v0.1.0](https://github.com/Refactor-Circus/Polycart/commits/v0.1.0) - 2026-10-30
