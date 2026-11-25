@@ -1,0 +1,190 @@
+# Build log
+
+## Group 1
+
+Stats and search API, cart-stats MCP tool (criteria 1-7).
+
+### Files
+
+- Added `src/Domains/Cart/Actions/ShowCartStatsAction.php`: a final read action taking `CartTypeRegistry`. `execute(?Model $viewer = null): CartStats` dispatches `CartStatsShowingActionEvent`, then runs one grouped count query (`ofType(...registered)->unexpired()->toBase()->select('type')->selectRaw('count(*) as aggregate')->groupBy('type')`, zero-filled in registry order) and one recent query (`withCount('lines')->latest('updated_at')->latest('id')->limit(5)`), both through `accessibleBy($viewer)` when a viewer is given, then dispatches `CartStatsShownActionEvent`.
+- Added `src/Domains/Cart/Events/CartStatsShowingActionEvent.php` (viewer) and `CartStatsShownActionEvent.php` (stats, viewer).
+- Added `src/Domains/Cart/Support/CartStats.php`: `final readonly`, `array<string,int> $byType`, `EloquentCollection<int, CartModel> $recent`.
+- Added `src/Domains/Cart/Http/Resources/CartStatsResource.php`: final, `@property CartStats $resource`. `toArray()` gives `by_type` as a list of `{type, count}` and `recent` as `CartResource::collection(...)->resolve($request)`. `schema()` declares both.
+- Added `src/Domains/Cart/Http/Requests/ShowCartStatsRequest.php` and `SearchCartsRequest.php`. Search's `q` rules are `required` plus `ListCartsData::rules()['search']` without `sometimes`/`nullable`, plus `ListCartsData::pagination()->rules()`. `persist()` builds `ListCartsData::fromValidated(['search' => q, per_page, cursor])` and calls `ListCartsAction`.
+- Changed `src/Domains/Cart/Http/Controllers/CartController.php` (`stats`, `search`) and `src/Domains/Cart/routes.php` (`stats` → `stats.show`, `search` → `search.index`).
+- Added `src/Domains/Cart/Mcp/Requests/ShowCartStatsMcpRequest.php` and `src/Domains/Cart/Mcp/Tools/CartStatsTool.php` (`#[Name('cart-stats')]`, `outputSchema` = `CartStatsResource::structuredSchema()`), and registered the tool in `src/Mcp/PolycartServer.php` after `ListCartsTool`.
+
+### Tests
+
+- `tests/Feature/StatsTest.php` (new): registry order with zeros; expired, deleted and unregistered-type carts not counted (expired and unregistered still recent); viewer scoping; five most recent, ties by id descending, with `lines_count` and no `lines`; Showing before the first query, Shown after the last, carrying the result; the same query count for 1 and 20 carts and for 1 and 10 types.
+- `tests/Feature/ApiTest.php`: `polycart.stats.show` JSON paths; `polycart.search.index` label and id matches, the same ids and order as `polycart.carts.index?search=`, cursor paging; 422 for a missing, empty or 192-character `q` and `per_page=201`; 200 at 191 characters and `per_page=200`.
+- `tests/Feature/AccessTest.php`: 401 for a guest on both endpoints; 403 on both (and `Unauthorized.` over MCP) when `viewAny` is refused; counts, recent, search and `cart-stats` limited to the user's carts.
+- `tests/Feature/Mcp/McpTest.php`: `cart-stats` returns `data.by_type`/`data.recent`, checked against the tool's output schema.
+- `tests/Cortex/CortexTest.php`: `cart-stats` is offered to Cortex.
+- The suite was not run in this step; the gate runs `vendor/bin/pest`. Pint passes on the changed files, and PHPStan reports nothing for the new source files.
+
+### Deviations
+
+- Changed `tests/Feature/Mcp/OutputSchemaTest.php`, which is outside the group's file list: the number of tools with structured content goes from 19 to 20 because of `cart-stats`.
+- Changed `tests/ArchTest.php`, which is outside the group's file list. The rule "every MCP request has a tool on the server" matched `{X}McpRequest` to `{X}Tool::class` by name, so the spec's pair `ShowCartStatsMcpRequest`/`CartStatsTool` (AC 7) could never pass it. The rule now checks that some tool in `PolycartServer::TOOLS` takes the request in its `handle()`. That is the same rule with the name coupling removed, and every existing pair still passes. `PARITY_EXCEPTIONS` is unchanged.
+
+## Group 2
+
+Remove the Atrium plugin from code, config and tests (criteria 8, 9, 10, 13).
+
+### Files
+
+- Deleted `src/Atrium/` (plugin, screens, controllers, `ScreenAccess`, `PolycartSupportFeature`, `CartTypeRow`, `Badges`, `Format`), `resources/views/` and `lang/`.
+- `src/PolycartServiceProvider.php`: `boot()` is now policies, MCP server, Cortex, history routes, not-found responses and the config/migrations publishes. There is no `registerAtriumPlugin()`, `loadViewsFrom()`, `Blade::if('polycartCan')`, `loadTranslationsFrom()`, `polycart-views` or `polycart-lang`.
+- `config/polycart.php`: removed the `ui` and `atrium` sections and the `PolycartSupportFeature` import. The `routes` banner now names the stats and search endpoints, says that `openapi.json` and the TypeScript client (`@refactor-circus/polycart-client`) describe the routes, and says that a front end built on the API needs it on, behind the host's auth middleware. `routes.enabled` stays `false`. The `audit` banner names only the history route and MCP tool. The file no longer contains "atrium" or "dashboard".
+- `src/Domains/Cart/Mcp/Tools/ListCartsTool.php`: removed `atrium` from the example sources in the `source` description.
+- Deleted the Atrium-only tests: `tests/Feature/Ui/`, `tests/Feature/NavigationSectionTest.php`, `tests/Unit/CartTypeRowTest.php`, `tests/PennantPlus/`, `tests/PennantPlusTestCase.php`, `tests/Fixtures/Features/` and `tests/Fixtures/views/`.
+- `tests/Pest.php`: removed the `PennantPlusTestCase` `uses()`.
+- `tests/TestCase.php`: registers only `McpServiceProvider` and `PolycartServiceProvider`. It no longer uses `ResetsScreenExtensions`, adds the `polycart-tests` view namespace or sets `atrium.disabled`.
+- `tests/Feature/SourceTest.php`: removed the case for copies made from the dashboard.
+- `tests/Feature/PerformanceTest.php`: removed the two dashboard query-budget cases and the carts-by-type widget case. `StatsTest`'s "same queries however many carts and types" case (Group 1) now holds the counts budget.
+- `tests/Keen/HistoryTest.php`: removed the Atrium-only `beforeEach` (CSRF exception, local environment) and the case that opened the Atrium screens. Its history route and tool assertions duplicated "serves a cart's history from the history endpoint and tool", which stays.
+- `tests/Feature/DocsTest.php`: removed the two screen-key cases and `DOCS_SCREEN_KEYS`, keeping the audit-trail case. Group 5 adds the new docs promises.
+
+### Tests
+
+- `tests/ArchTest.php`: "the package uses no Atrium class" is `expect('RefactorCircus\Polycart')->not->toUse('RefactorCircus\Atrium')`, with no `ignoring()`.
+- `tests/Feature/ServiceProviderTest.php`:
+  - The `polycart` tag publishes exactly `config/polycart.php` and `database/migrations`.
+  - The `polycart-views` and `polycart-lang` groups are absent and publish nothing.
+  - There is no `polycart` view hint or translation namespace.
+  - There are no `polycartCan`/`endpolycartCan`/`unlesspolycartCan` Blade directives.
+  - The config file has no `ui` or `atrium` key, no `PolycartSupportFeature` and no "atrium" or "dashboard" text.
+  - `routes.enabled` defaults to `false`, and the file mentions `openapi.json`, the client and auth middleware.
+  - With `polycart.routes.enabled` off, booting `CartServiceProvider` on an emptied router registers neither `polycart.stats.show` nor `polycart.search.index`, and with it on it registers both.
+- I did not run the suite in this step; the gate runs `vendor/bin/pest`. `php -l` passes on the changed PHP files.
+
+### Deviations
+
+- Changed `phpunit.xml.dist`, which is outside the group's file list: removed the `PennantPlus` test suite, whose directory this group deletes. The config has `failOnWarning` and `failOnEmptyTestSuite`, so a suite pointing at a missing directory would fail `vendor/bin/pest`.
+- I left `tests/WithoutAtrium/`, `phpunit.without-atrium.xml`, the Atrium cases in `tests/Feature/ComposerTest.php`, `composer.json` and the workbench to Group 3, as the plan assigns. Until Group 3 lands, the `WithoutAtrium` suite still refers to deleted code. It runs only through `composer test:without-atrium`, never `vendor/bin/pest`.
+
+## Group 3
+
+Remove Atrium and PennantPlus from composer, workbench and CI (criteria 11, 12, 13, 14).
+
+### Files
+
+- `composer.json`: removed `refactor-circus/atrium` and `refactor-circus/pennantplus` from `require-dev` and `suggest`, the `conflict` section (it held only Atrium), the Atrium and PennantPlus VCS repositories, the `test:without-atrium` script and its entry in `test`. `require` still names only `refactor-circus/keystone` from the suite. There was no `extra.atrium`.
+- Deleted `tests/WithoutAtrium/` and `phpunit.without-atrium.xml`.
+- `.github/workflows/tests.yml`: removed the `without-atrium` job.
+- `.gitattributes`: removed the `/phpunit.without-atrium.xml` line.
+- `testbench.yaml`: removed `RefactorCircus\Atrium\AtriumServiceProvider`, the `laravel/pennant` migrations line and the `atrium-assets` asset. `workbench.start` is `/polycart/carts`.
+- `workbench/app/Providers/WorkbenchServiceProvider.php`: removed the Pennant store, `polycart.ui.enabled` and `polycart.atrium.show_all`. It sets `polycart.routes.enabled => true`, and the docblock describes the JSON API and MCP server.
+- `workbench/database/seeders/DatabaseSeeder.php`: every `'atrium'` source is now `'http'`, and the docblock says "the API" instead of "the dashboard".
+
+### Tests
+
+- `tests/Feature/ComposerTest.php`:
+  - Keystone is the only suite package in `require`.
+  - Atrium and PennantPlus are absent from `require`, `require-dev`, `suggest` and `conflict`, which is a dataset with one case per section.
+  - No repository URL names Atrium or PennantPlus.
+  - There is no `extra.atrium`.
+  - There is no `test:without-atrium` script, and `test` is exactly analyse, lint:check, test:types and test:unit.
+  - Cortex and Keen stay in `require-dev`.
+  - The WithoutAtrium cases are gone.
+- `tests/Feature/NoAtriumTest.php` (new):
+  - "atrium" (case-insensitive) appears in no file name or contents under `src/`, `config/`, `database/`, `workbench/`, `testbench.yaml`, `composer.json`, `phpunit.xml.dist`, `.gitattributes` or `.github/`.
+  - `phpunit.without-atrium.xml` and `tests/WithoutAtrium/` are gone, and the CI workflow has no `without-atrium`.
+  - Registering `WorkbenchServiceProvider` turns `polycart.routes.enabled` on and sets no `polycart.ui` key and no PennantPlus store.
+  - `testbench.yaml`'s `workbench.start` starts with `/polycart/`. Its providers name no Atrium class, its migrations have no Pennant line, and its assets are only `laravel-assets`.
+  - The seeder's sources are only `http`, `mcp` and `code`.
+- `composer update` resolves. I ran it through the local manifest (`bin/composer-local.php`, then `COMPOSER=composer.local.json composer update refactor-circus/atrium refactor-circus/pennantplus --with-all-dependencies`). It removed `refactor-circus/atrium`, `refactor-circus/pennantplus` and `laravel/pennant` from `vendor/`.
+- `ComposerTest` and `NoAtriumTest` pass (14 tests), and Pint passes on the changed PHP files. I did not run the full suite; the gate runs `vendor/bin/pest`.
+
+### Deviations
+
+- Regenerating the gitignored `composer.local.json` with `bin/composer-local.php` wrote the committed `^0.1` constraints for Keystone, Cortex and Keen. The path repositories offer only `dev-main`, so I set those three back to `dev-main` in the local file, as the job's install had them (the lock's stability flags). No committed file is affected.
+- The workbench JSON API runs on the `api` middleware group, while `SignInWorkbenchUser` is appended to `web`. With `polycart.authorization` on (the default), opening `start` in a browser answers 401. This is raised as a decision; nothing was changed for it.
+
+## Group 4 (salvaged)
+
+OpenAPI export and TypeScript client (criteria 15-20). The build agent ended without a result, so this note covers what the salvage found and finished.
+
+### What I found
+
+There was no index lock and no merge or rebase in progress. Every file in the group was already written but not committed:
+
+- `composer.json` had `dedoc/scramble` `^0.13.55` in `require-dev` (v0.13.55 is installed and supports `illuminate/contracts ^13.0`) and the `client:generate` script.
+- `ExportOpenApiCommand` (`workbench:openapi {path=openapi.json}`) existed. It points the default connection at an in-memory SQLite database, migrates, then calls `scramble:export --path`.
+- `WorkbenchServiceProvider` registered the command and set the Scramble config: `api_path` `polycart`, version `2.0.0`, title `Polycart`, no cache, and a `/polycart` server set by a document transformer. A workbench-only operation transformer names each operation by its route name. It also writes each success body from the resource's own `schema()` (item, list or cursor page), because `$request->persist()` hides the resource from Scramble. `src/` has no Scramble code.
+- The `client/` files, the CI `client` job, `/client export-ignore`, the arch rule, the `ComposerTest` cases and `tests/Feature/OpenApiTest.php` were all there.
+- The committed `openapi.json` was stale. A fresh export changed the 200 description of the two paged operations (`polycart.search.index` and `polycart.carts.index`) from "Array of `CartResource`" to "A cursor page of `CartResource`".
+
+### What I did
+
+- Ran `composer client:generate`. It rewrote `openapi.json`, `client/src/schema.d.ts` and `client/openapi.sha256`, and the stamp matches `shasum -a 256 openapi.json`. A second export to a scratch path was byte-identical, so the export is the same on every run.
+- Ran `npm --prefix client run typecheck`, which passed.
+- Checked `openapi.json`: it has 21 operations, `polycart.stats.show` and `polycart.search.index` among them. The stats data schema has `by_type` and `recent`, and search has a `q` query parameter.
+- `OpenApiTest`: the "no machine-specific value" case chained `->not` twice, which Larastan rejects. I split it into `->and()`.
+- Pint passes on the group's PHP files. PHPStan passes on the workbench files; `tests/` is outside its paths.
+- Committed only the group's listed paths.
+
+### What is left
+
+- 4.6: I did not run the full suite, as the job asked. The gate runs `vendor/bin/pest`.
+- The working tree also has an uncommitted `.gitignore` change (`/client/node_modules`) that the group's original agent made. `.gitignore` is not in the group's file list, so I left it alone. `client/node_modules` must stay out of git: commit that line in a later round, or add it in group 5.
+
+## Group 4
+
+OpenAPI export and TypeScript client (criteria 15-20), retry for task 4.6. Tasks 4.1-4.5 landed in the salvaged commit above and are kept as they are.
+
+### Files
+
+- `.gitignore`: committed the `/client/node_modules` line that the salvage left uncommitted.
+- `tasks.md`: ticked 4.6.
+
+### Tests
+
+- I did not run the suite, as the job asked. The gate runs `vendor/bin/pest` for 4.6.
+- `client/openapi.sha256` equals `shasum -a 256 openapi.json` (`eb989d1d...ab7e`), so `OpenApiTest`'s stamp case holds for the committed files.
+
+### Deviations
+
+- `.gitignore` is outside the group's file list. Without the line, `client/node_modules` (from `npm --prefix client ci` in `composer client:generate`) shows as untracked and could be committed by mistake.
+
+## Group 5
+
+Docs, CHANGELOG and final gate (criteria 21-24).
+
+### Files
+
+- `tests/Feature/DocsTest.php`: the screen-key cases are replaced. New cases check that the README names `polycart.stats.show`, `polycart.search.index`, `cart-stats`, `polycart.routes.enabled`, `openapi.json`, `createPolycartClient`, `client:generate` and Atrium v2. They also check that it says the API is off by default and behind auth middleware, shows the `by_type`/`recent` payload, and has no Atrium dashboard, screen extensions, operators or `show_all` text. Further cases check that the README, `CLAUDE.md`, `AGENTS.md`, the Boost skill and every `docs/*.md` contain none of `src/Atrium`, `ScreenAccess`, `@polycartCan`, `PolycartSupportFeature`, `polycart.atrium`, `polycart.ui`, `polycart-views`, `polycart-lang`, `CartTypeRow` or `` `atrium` ``, and no screen key quoted as code or a string (the regex leaves route names such as `polycart.carts.index` alone). Finally: `CLAUDE.md` equals `AGENTS.md`; `AGENTS.md` and the skill name `composer client:generate`, `cart-stats` and both route names; and the CHANGELOG's `v2.0.0` section has Breaking and Added entries and names Atrium v2, `polycart.routes.enabled`, both tags, both routes, `cart-stats`, `openapi.json` and the client. The audit-trail case is kept.
+- `README.md`: new "API + MCP" intro (Atrium v2 is the optional UI). The JSON API section gains "Enabling the API" (off by default, Atrium v2 needs it on, behind auth middleware), `/stats` and `/search` rows, "Stats" and "Search" sections with example payloads, and "Who sees what". A new "OpenAPI and the TypeScript client" section covers install, `createPolycartClient` and "Regenerating the client" (`composer client:generate`, the staleness test, the CI `client` job). The MCP list gains `cart-stats`. The Atrium dashboard section is gone (permissions, operators, screen extensions, switching off, the Pennant feature), and so are the views/lang publishing line, `atrium` from the list of sources, the Atrium history pointer and the `src/Atrium` part of "Package layout".
+- `CHANGELOG.md`: the `v2.0.0` section has an upgrade note (Atrium v2 plus `polycart.routes.enabled`, removing the `ui`/`atrium` config, deleting published views and translations), Breaking entries (the removed Atrium UI, config keys, `polycart-views`/`polycart-lang` tags, translations, `@polycartCan`, the dropped suggest/conflict and WithoutAtrium suite, no more `atrium` source) and Added entries (stats, search, `cart-stats`, `openapi.json`, the client and `composer client:generate`). The `Unreleased` link now compares from v2.0.0.
+- `AGENTS.md` (`CLAUDE.md` is a symlink to it, so they are identical): adds an API-plus-MCP intro. Removes the Atrium plugin helper, the "Atrium controllers use `XData::from`" clause, the duplicated batch-lines bullet, the screens/history sentence and the three Atrium bullets. Adds bullets on stats/search/`cart-stats`, on the OpenAPI document and client regeneration (`composer client:generate`, `OpenApiTest` as the staleness test, the CI `client` job, the workbench `RESOURCES` schema list) and on Polycart shipping no UI (ArchTest plus `NoAtriumTest`). `client:generate` is listed under Quick Commands.
+- `resources/boost/skills/polycart-development/SKILL.md`: section 7 is now "Expose carts over the JSON API and MCP". It covers Atrium v2 as the optional UI, the API off by default, stats, search, `cart-stats` in the tool list, OpenAPI and the client, and `composer client:generate`. The Atrium bullets are removed. Section 8 drops `atrium` from the sources and the Atrium history pointer.
+- `docs/sources-and-history.md`: the `atrium` source row and surface are removed, and `http` notes front ends on the API. "In the Atrium dashboard" (with the screen-key table) is replaced by a short "In a front end". The Keen row no longer mentions Atrium screens.
+- `docs/scoping-and-sharing.md`: the "In the Atrium dashboard" section and its TOC entry are removed. The API section says search and stats are scoped to accessible carts.
+- `docs/roles-and-permissions.md`: adds Search and Stats rows to the API/MCP ability table, and replaces the Atrium operators paragraph.
+- `docs/adding-lines.md`: `atrium` is dropped from the `source` values.
+- `tasks.md`: ticked 5.1-5.5.
+
+### Tests
+
+- As the job asked, I did not run the whole suite; the gate runs `composer test` and `vendor/bin/pest` for 5.5. I ran only the new test file: `vendor/bin/pest tests/Feature/DocsTest.php` (24 passed), `vendor/bin/phpstan analyse tests/Feature/DocsTest.php` (no errors) and `vendor/bin/pint --test tests/Feature/DocsTest.php` (passed).
+
+### Deviations
+
+- `docs/events.md` (outside the group's files) still says actions run through "code, the JSON API, MCP, Cortex or the dashboard". It names no Atrium class or key, so I left it; dropping "or the dashboard" would be a one-word nit.
+
+## Group 5 (retry)
+
+Docs, CHANGELOG and final gate (criteria 21-24). This retry keeps the work above (5.1-5.5 committed) and finishes the `docs/*.md` loose end it left.
+
+### Files
+
+- `docs/events.md`: the intro no longer lists "the dashboard" as a way actions run. It now says "the JSON API (and any front end on it), MCP or Cortex". The action-event table gains the `ShowCartStatsAction` row (`CartStatsShowingActionEvent` (`viewer`) and `CartStatsShownActionEvent` (`stats`: `CartStats`, `viewer`)), so the guide covers the new action (AC 23: `docs/*.md` describe the package as API plus MCP).
+
+### Tests
+
+- `vendor/bin/pest tests/Feature/DocsTest.php`: 24 passed. As the job asked, I did not run the whole suite. The gate runs `composer test` and `vendor/bin/pest` for 5.5.
+
+### Deviations
+
+- `docs/events.md` is outside the group's file list, but AC 23 covers every `docs/*.md`. `docs/cortex.md` still says "from the dashboard". That sentence is about where Cortex's own users pick tools, not about Polycart, so I left it.

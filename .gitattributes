@@ -6,7 +6,6 @@
 /.editorconfig      export-ignore
 /tests              export-ignore
 /phpunit.xml.dist   export-ignore
-/phpunit.without-atrium.xml export-ignore
 /phpstan.neon.dist  export-ignore
 /pint.json          export-ignore
 /testbench.yaml     export-ignore
@@ -16,3 +15,5 @@
 /CLAUDE.md          export-ignore
 /AGENTS.md          export-ignore
 /art                export-ignore
+/client             export-ignore
+/atrium             export-ignore

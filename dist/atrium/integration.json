@@ -1,0 +1,71 @@
+{
+  "$schema": "../node_modules/@refactor-circus/atrium/schema/integration.schema.json",
+  "version": 1,
+  "key": "polycart",
+  "label": "Polycart",
+  "features": [
+    "polycart.atrium"
+  ],
+  "navigation": [
+    {
+      "label": "Carts",
+      "path": "/polycart/carts",
+      "icon": "i-lucide-shopping-cart",
+      "group": "Polycart",
+      "sort": 30
+    },
+    {
+      "label": "Cart types",
+      "path": "/polycart/types",
+      "icon": "i-lucide-layers",
+      "group": "Polycart",
+      "sort": 31
+    }
+  ],
+  "widgets": [
+    {
+      "key": "polycart.carts-by-type",
+      "label": "Carts by type",
+      "description": "How many unexpired carts each type holds.",
+      "icon": "i-lucide-chart-column",
+      "size": {
+        "width": 6,
+        "height": 2
+      }
+    },
+    {
+      "key": "polycart.recent-carts",
+      "label": "Recent carts",
+      "description": "The five carts changed most recently.",
+      "icon": "i-lucide-clock",
+      "size": {
+        "width": 6,
+        "height": 2
+      }
+    }
+  ],
+  "search_sources": [
+    {
+      "key": "polycart",
+      "label": "Carts",
+      "icon": "i-lucide-shopping-cart"
+    }
+  ],
+  "screens": [
+    {
+      "key": "polycart.carts",
+      "kind": "list",
+      "path": "/polycart/carts"
+    },
+    {
+      "key": "polycart.cart",
+      "kind": "detail",
+      "path": "/polycart/carts/:cart"
+    },
+    {
+      "key": "polycart.types",
+      "kind": "list",
+      "path": "/polycart/types"
+    }
+  ]
+}

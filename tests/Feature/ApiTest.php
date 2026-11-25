@@ -72,6 +72,63 @@ it('lists carts with filters and a cursor', function (): void {
     $this->getJson('/polycart/carts?per_page=2&cursor='.$page->json('meta.next_cursor'))->assertJsonCount(1, 'data');
 });
 
+it('shows the cart counts per type and the recent carts', function (): void {
+    $quote = Polycart::create('quote', attributes: ['label' => 'Lobby']);
+    $quote->add(product());
+    Polycart::create('cart');
+
+    $response = $this->getJson(route('polycart.stats.show'))
+        ->assertOk()
+        ->assertJsonCount(10, 'data.by_type')
+        ->assertJsonPath('data.by_type.0', ['type' => 'cart', 'count' => 1])
+        ->assertJsonPath('data.by_type.2', ['type' => 'quote', 'count' => 1])
+        ->assertJsonPath('data.by_type.3', ['type' => 'order', 'count' => 0])
+        ->assertJsonCount(2, 'data.recent');
+
+    $recent = collect($response->json('data.recent'))->firstWhere('id', $quote->id);
+
+    expect($recent['label'] ?? null)->toBe('Lobby')
+        ->and($recent['lines_count'] ?? null)->toBe(1)
+        ->and($recent)->not->toHaveKey('lines');
+});
+
+it('searches carts by label or id prefix, as the list does, a page at a time', function (): void {
+    $tower = Polycart::create('quote', attributes: ['label' => 'Tower lobby']);
+    Polycart::create('cart', attributes: ['label' => 'Office']);
+    Polycart::create('cart', attributes: ['label' => 'Lobby annex']);
+
+    $found = $this->getJson(route('polycart.search.index', ['q' => 'lobby']))
+        ->assertOk()
+        ->assertJsonCount(2, 'data')
+        ->assertJsonPath('data.0.lines_count', 0)
+        ->json('data.*.id');
+
+    expect($found)->toBe($this->getJson(route('polycart.carts.index', ['search' => 'lobby']))->json('data.*.id'));
+
+    $this->getJson(route('polycart.search.index', ['q' => $tower->id]))
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $tower->id);
+
+    $page = $this->getJson(route('polycart.search.index', ['q' => 'lobby', 'per_page' => 1]))
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $found[0]);
+
+    $this->getJson(route('polycart.search.index', ['q' => 'lobby', 'per_page' => 1, 'cursor' => $page->json('meta.next_cursor')]))
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $found[1])
+        ->assertJsonPath('meta.next_cursor', null);
+});
+
+it('refuses a search without a usable query or page size', function (): void {
+    $this->getJson(route('polycart.search.index'))->assertUnprocessable()->assertJsonValidationErrors(['q']);
+    $this->getJson(route('polycart.search.index', ['q' => '']))->assertUnprocessable()->assertJsonValidationErrors(['q']);
+    $this->getJson(route('polycart.search.index', ['q' => str_repeat('a', 192)]))->assertUnprocessable()->assertJsonValidationErrors(['q']);
+    $this->getJson(route('polycart.search.index', ['q' => 'a', 'per_page' => 201]))->assertUnprocessable()->assertJsonValidationErrors(['per_page']);
+
+    $this->getJson(route('polycart.search.index', ['q' => str_repeat('a', 191), 'per_page' => 200]))->assertOk();
+});
+
 it('shows, updates and deletes a cart', function (): void {
     $cart = Polycart::create('cart');
     $cart->add(product(price: 1200), 2);

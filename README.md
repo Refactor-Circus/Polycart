@@ -22,6 +22,14 @@ Typed carts for Laravel. A shopping cart, a saved cart, a quote, an order, a pro
 
 Your code never branches on the key.
 
+## API + MCP
+
+Polycart is a Laravel package with two surfaces on top of its PHP API: a **JSON API** and an **MCP server**. Both call the same action classes, so a front end and an agent see exactly the same carts and rules. Polycart ships no PHP UI; its only front end is its [Atrium module](#the-atrium-module), plain JavaScript.
+
+- The [JSON API](#json-api) is described by a committed OpenAPI document, [`openapi.json`](openapi.json), and called from TypeScript through a generated client, `@refactor-circus/polycart-client` (see [OpenAPI and the TypeScript client](#openapi-and-the-typescript-client)).
+- The [MCP server](#mcp-server) offers the same operations as tools, and [Cortex](#cortex) agents can use them.
+- [Atrium v2](https://github.com/Refactor-Circus/Atrium), the suite's dashboard, is the optional UI. It is a separate package that loads Polycart's [Atrium module](#the-atrium-module), whose pages read and change carts through this JSON API and the client, so it needs `polycart.routes.enabled` on, behind your auth middleware (see [Enabling the API](#enabling-the-api)).
+
 ## Installation
 
 ```bash
@@ -43,7 +51,7 @@ To use other table names, set `polycart.tables` in the published config before m
 ],
 ```
 
-To customise the Atrium dashboard's views or strings, publish them with the `polycart-views` or `polycart-lang` tag. The `polycart` tag publishes everything at once.
+The `polycart` tag publishes the config and the migrations at once.
 
 ## Defining types
 
@@ -336,7 +344,11 @@ $user->can('checkout', $order);
 
 ## JSON API
 
-Every cart operation is available over HTTP. The API is **off by default** because it can read and change every cart. Enable it behind your own authentication:
+Every cart operation is available over HTTP.
+
+### Enabling the API
+
+The API is **off by default** (`polycart.routes.enabled` is `false`) because it can read and change every cart. While it is off, none of its routes is registered. Turn it on when your own front end, or Atrium v2, needs it, and always put it behind your auth middleware:
 
 ```php
 // config/polycart.php
@@ -363,6 +375,8 @@ Turn authorization off only for trusted server-to-server use.
 | Method | Path | Does |
 | --- | --- | --- |
 | `GET` | `/types` | Every type and what it allows |
+| `GET` | `/stats` | Counts by type and the most recently updated carts. Named `polycart.stats.show`; see [Stats](#stats). |
+| `GET` | `/search` | Carts whose label contains `q`, or whose id starts with it. Named `polycart.search.index`; see [Search](#search). |
 | `GET` | `/carts` | List, filtered by `type`, `status`, `source`, `owner_type` and `owner_id`, `scope_type` and `scope_id`, `session_key`, `parent`, `root`, `search`, `unexpired`; cursor paginated |
 | `POST` | `/carts` | Create a cart (`type`, and optionally `scope_type` and `scope_id`, an owner or `session_key`, `label`, `meta`, `parent_id`) |
 | `POST` | `/carts/active` | The owner's current cart of a type, created if missing |
@@ -384,12 +398,115 @@ Turn authorization off only for trusted server-to-server use.
 
 When a type refuses a request, the API returns `422` with a message that explains why, such as `A [quote] cart cannot move from [submitted] to [draft].`
 
+### Stats
+
+`GET /polycart/stats` (`polycart.stats.show`) answers what a dashboard's overview needs, in one call:
+
+```json
+{
+    "data": {
+        "by_type": [
+            {"type": "cart", "count": 3},
+            {"type": "quote", "count": 0}
+        ],
+        "recent": [
+            {"id": "01JD7Q4K2M9V8T6X3N5B1C0A9Z", "type": "cart", "status": null, "source": "http", "label": "Lobby", "lines_count": 2, "meta": {}, "expires_at": "2026-12-08T09:30:00+00:00", "created_at": "2026-11-23T09:30:00+00:00", "updated_at": "2026-11-23T10:05:00+00:00", "...": "..."}
+        ]
+    }
+}
+```
+
+- `by_type` has one entry for every registered type, in the order `Polycart::types()->all()` lists them, with `0` for a type that has no carts. It counts the carts the caller can access that are neither expired nor deleted. Carts of a type that is no longer registered are left out.
+- `recent` holds up to 5 carts the caller can access, of any type and expired or not, most recently updated first. Each is the cart payload of `GET /carts/{cart}` with `lines_count` and without `lines`.
+
+The same answer comes from `RefactorCircus\Polycart\Domains\Cart\Actions\ShowCartStatsAction::execute($viewer)` in code, and from the `cart-stats` MCP tool.
+
+### Search
+
+`GET /polycart/search?q=lobby` (`polycart.search.index`) finds the carts the caller can access whose label contains `q` or whose id starts with it. It answers exactly as `GET /carts?search=lobby` does: a page of carts with `lines_count`, newest first, paged by cursor with `per_page` (default 25, at most 200) and `cursor`:
+
+```json
+{
+    "data": [
+        {"id": "01JD7Q4K2M9V8T6X3N5B1C0A9Z", "type": "cart", "label": "Lobby", "lines_count": 2, "...": "..."}
+    ],
+    "links": {"first": null, "last": null, "prev": null, "next": "https://app.test/polycart/search?q=lobby&cursor=eyJpZCI6..."},
+    "meta": {"path": "https://app.test/polycart/search", "per_page": 25, "next_cursor": "eyJpZCI6...", "prev_cursor": null}
+}
+```
+
+A missing or empty `q`, a `q` longer than 191 characters, or a `per_page` out of range answers `422` with an error on that field. Agents search through `list-carts` with its `search` argument.
+
+### Who sees what
+
+With `polycart.authorization` on, both endpoints answer `401` to a guest and `403` to a user whom the cart policy refuses `viewAny`. A signed-in user's counts, recent carts and search results hold only the carts that user can access.
+
+## OpenAPI and the TypeScript client
+
+The JSON API is described by [`openapi.json`](openapi.json) at the package root, an OpenAPI document with one operation for every `polycart.*` route, `polycart.stats.show` and `polycart.search.index` included. Its paths are relative to the routes' prefix (`/polycart` by default).
+
+The [`client/`](client) folder holds `@refactor-circus/polycart-client`, a typed fetch client generated from that document with [openapi-typescript](https://openapi-ts.dev/) and [openapi-fetch](https://openapi-ts.dev/openapi-fetch/). It ships as TypeScript source with no build step, so your bundler compiles it (Polycart's own Atrium module does). It is not published to npm: install it as a git dependency on the release tag, with a package manager that installs a subfolder of a repository, such as pnpm:
+
+```json
+{
+    "dependencies": {
+        "@refactor-circus/polycart-client": "github:refactor-circus/polycart#v2.0.0&path:/client"
+    }
+}
+```
+
+`createPolycartClient(options)` takes the API's base URL, prefix included, plus any openapi-fetch option (`headers`, `credentials`, `fetch`, ...), and returns a client whose paths, parameters and responses are typed:
+
+```ts
+import { createPolycartClient, type components } from '@refactor-circus/polycart-client';
+
+const polycart = createPolycartClient({ baseUrl: 'https://app.test/polycart', credentials: 'include' });
+
+const { data: stats } = await polycart.GET('/stats');
+const { data: found } = await polycart.GET('/search', { params: { query: { q: 'lobby', per_page: 10 } } });
+
+type Cart = components['schemas']['CartResource'];
+```
+
+The client only works while the host has `polycart.routes.enabled` on, and it is subject to the same auth middleware and policies as any other caller.
+
+### Regenerating the client
+
+Never edit `openapi.json`, `client/src/schema.d.ts` or `client/openapi.sha256` by hand. After changing a route, request or resource, run (with Node installed):
+
+```bash
+composer client:generate
+```
+
+It exports `openapi.json` with `php vendor/bin/testbench workbench:openapi openapi.json` (against an in-memory database, so the output is the same on every machine), runs `npm --prefix client ci`, then `npm --prefix client run generate`, which writes `client/src/schema.d.ts` and `client/openapi.sha256` (the SHA-256 of `openapi.json`). Commit all three. `tests/Feature/OpenApiTest.php` fails while `openapi.json` differs from a fresh export or the client's stamp does not match it, and the CI `client` job regenerates everything, fails on any diff and type-checks the client.
+
+## The Atrium module
+
+Polycart ships its front end for [Atrium v2](https://github.com/Refactor-Circus/Atrium) as an Atrium module: the carts, cart and cart types pages, the *Carts by type* and *Recent carts* dashboard widgets and the carts search source. It is JavaScript only, with no PHP: Polycart neither requires nor suggests Atrium, and nothing under `src/` names it.
+
+- `composer.json` declares the module under `extra.atrium` (key `polycart`, integration manifest `dist/atrium/integration.json`, script `dist/atrium/atrium.js`, stylesheet `dist/atrium/atrium.css`). When Atrium is installed, it discovers the module and injects the script into its page while the Polycart integration is active; without Atrium nothing reads it.
+- `atrium/src/integration.json` is the module's integration manifest: what Polycart adds to Atrium's shell, as static JSON with no PHP. It declares the Pennant feature the integration needs, the *Carts* and *Cart types* navigation items, the two dashboard widgets, the carts search source and the carts, cart and cart types screens. The build validates it against Atrium's schema and writes it to `dist/atrium/integration.json`, which `extra.atrium.integration` points at; Atrium reads it there when it registers the integration. To change what Polycart declares, edit `atrium/src/integration.json` and rebuild (below).
+- `dist/atrium/` holds the built module and is committed, so hosts never run Node. Its sources, in `atrium/` (Vue, typed by `client/src/schema.d.ts`), are left out of the Composer dist.
+- The module calls the JSON API, so it needs `polycart.routes.enabled` on, behind your auth middleware.
+- The module's components compose Nuxt UI (Atrium's `@refactor-circus/atrium/ui`) and the SDK's `Atrium*` components, with no raw buttons, fields, tables or links; `atrium/test/nuxt-ui-guard.test.ts` enforces it.
+
+To rebuild it after changing `atrium/` (the manifest included) or the client, with pnpm 10 and Node 20 or later:
+
+```bash
+cd atrium
+pnpm install
+pnpm typecheck && pnpm test && pnpm build
+```
+
+Commit `dist/atrium/`. `tests/Feature/AtriumModuleTest.php` fails when the committed build is older than its sources, and the CI `ui` job rebuilds the module and fails on any difference.
+
 ## MCP server
 
 The same operations are available as MCP tools, so an agent can manage carts:
 
 - `list-cart-types`
-- `list-carts`, `show-cart`, `create-cart`, `active-cart`, `update-cart`, `delete-cart`, `clear-cart`
+- `cart-stats`, the counts by type and recent carts of `GET /stats`, under `data`
+- `list-carts` (pass `search` to search, as `GET /search` does), `show-cart`, `create-cart`, `active-cart`, `update-cart`, `delete-cart`, `clear-cart`
 - `transition-cart`, `convert-cart`, `merge-carts`
 - `add-lines`, `update-lines`, `remove-lines`
 - `list-members`, `share-cart`, `unshare-cart`, `set-visibility`
@@ -404,7 +521,7 @@ The same operations are available as MCP tools, so an agent can manage carts:
 
 Each tool answers with structured content shaped like the JSON API's response: a cart, line or member under `data`, and a list under `data` with its page under `meta` (`list-carts` pages by cursor: pass `meta.next_cursor` back as `cursor`). Every tool declares an output schema for it.
 
-The JSON API, the MCP tools and the dashboard all call the same action classes, and each action takes its input as a Data object (`CreateCartData`, `AddLinesData`, ...) that holds the validation rules, so every surface checks a call exactly the same way. An architecture test fails the build if any action is missing from the JSON API or the MCP server.
+The JSON API and the MCP tools call the same action classes, and each action takes its input as a Data object (`CreateCartData`, `AddLinesData`, ...) that holds the validation rules, so every surface checks a call exactly the same way. An architecture test fails the build if any action is missing from the JSON API or the MCP server.
 
 Calling an action yourself, build its Data with `new` (or `XData::from($input)` to validate untrusted input first):
 
@@ -431,93 +548,9 @@ When [`refactor-circus/cortex`](https://github.com/Refactor-Circus/cortex) is in
 
 **Full guide:** [Cortex](docs/cortex.md).
 
-## Atrium dashboard
-
-When [`refactor-circus/atrium`](https://github.com/Refactor-Circus/Atrium) is installed, Polycart adds pages to the dashboard behind Atrium's own gate. Atrium stays optional: without it Polycart's JSON API, MCP server and code work as before, and an Atrium older than the screen extensions registry is refused by Composer. Polycart adds:
-
-- **Carts:** filter the list, and open a cart to see its place in the tree and manage members and visibility. You can also edit its line quantities, move its status, convert it, rename it, edit its meta, clear it or delete it. Only the statuses and conversions its type allows are offered.
-- **Cart types:** every registered type and its rules.
-- **Widgets:** *Carts by type* and *Recent carts*.
-- **Search:** find carts from Atrium's search.
-- **History:** comes from [refactor-circus/keen](https://github.com/Refactor-Circus/Keen), not Polycart. Keen's History section and navigation attach to Polycart's screens through Atrium's screen extensions registry (below); Polycart draws no history of its own. A cart's history on its page therefore needs an Atrium with the registry and a Keen with its History section.
-
-The screens follow Atrium's screen conventions: actions are icon buttons (the label is the tooltip), each navigation item has an icon, and a cart's status is a coloured dot with the status on hover. `RefactorCircus\Polycart\Atrium\Badges` picks the colour by the status's meaning: `info` only for pending or awaiting states such as `pending` and `submitted`, `success` for done or active, `warning` for held, `danger` for failed or refused, `neutral` for over (and for any expired cart), and `primary` for anything else.
-
-### Permissions
-
-With `polycart.authorization` on (the default), the dashboard asks the policies in `polycart.policies` exactly what the JSON API asks, for the signed-in user:
-
-| Shown / allowed when | Ability |
-| --- | --- |
-| Carts and Cart types navigation, pages, widgets and search | `viewAny` on `CartModel` |
-| Opening a cart | `view` on the cart |
-| Clear, the Details card (label and meta) | `update` on the cart |
-| Delete | `delete` on the cart |
-| Each status in **Move to** | `transition` on the cart, with that status |
-| Each type in **Convert to** | `convert` on the cart, with that type |
-| Changing a line's quantity / removing a line | `update` / `delete` on the line |
-| Visibility | `share` on the cart |
-| Adding a member / removing one | `create` on `CartMemberModel` with the cart / `delete` on the member |
-
-A control is hidden unless its action would be allowed, and the action itself answers 403 otherwise. Lists, widgets and search hold only the carts the user can access, as the JSON API's list does. In your own Blade views, `@polycartCan('update', $cart) ... @endpolycartCan` asks the same question. With `polycart.authorization` off, everything is shown and allowed.
-
-#### Operators: showing every cart
-
-Support and operations staff often need to see and fix any cart, not only the ones they hold a role on. `polycart.atrium.show_all` makes such users **operators** of the dashboard:
-
-```php
-'atrium' => [
-    'show_all' => false,          // default: everyone sees only the carts their role allows
-    // 'show_all' => true,        // everyone who can open Atrium is an operator
-    // 'show_all' => 'manage-carts', // users the Gate allows this ability are operators
-],
-```
-
-```php
-Gate::define('manage-carts', fn (User $user): bool => $user->is_support);
-```
-
-An operator sees every cart in the lists, widgets and search, and is allowed every action and control on Polycart's carts, lines and members: viewing, editing, deleting, moving to any status the cart's type allows, converting and sharing. Guests are never operators. It applies to the dashboard only: the JSON API and MCP tools still act as the user's role on each cart allows. In your own views, `@polycartCan` answers the same way, and `RefactorCircus\Polycart\Atrium\ScreenAccess::operator($user)` tells you whether a user is one.
-
-### Screen extensions
-
-Polycart's three pages are screens on Atrium's screen extensions registry, so other packages (Keen's History among them) add tabs and sections to them without Polycart knowing they exist. Polycart registers nothing into other packages' screens.
-
-| Screen key | Page | Kind | Record | Slots |
-| --- | --- | --- | --- | --- |
-| `polycart.carts` | Carts (`atrium.polycart.carts.index`) | list | none; each row is its `CartModel` | `header.actions`, `before`, `after`, `row.actions` |
-| `polycart.cart` | A cart (`atrium.polycart.carts.show`) | detail | the `CartModel` | `header.actions`, `before`, `aside`, `after` |
-| `polycart.types` | Cart types (`atrium.polycart.types.index`) | list | none; each row is a `RefactorCircus\Polycart\Atrium\Data\CartTypeRow` | `header.actions`, `before`, `after`, `row.actions` |
-
-None has tabs of its own, so each opens on Atrium's `overview` tab, and a registered tab, when open, replaces the page body (only `header.actions` stays). `aside` sits in the cart page's side column and `row.actions` in a trailing cell of each row.
-
-```php
-use RefactorCircus\Atrium\Domains\Screens\Data\SectionDefinition;
-use RefactorCircus\Atrium\Facades\Atrium;
-
-Atrium::screens()->section('polycart.cart', 'after', SectionDefinition::make('acme.shipping')->view('acme::cart-shipping')->permission('view'));
-Atrium::screens()->section('polycart.carts', 'row.actions', SectionDefinition::make('acme.export')->view('acme::export-button')->permission('update'));
-```
-
-A `permission()` on an extension is decided by Polycart's `RefactorCircus\Polycart\Atrium\ScreenAccess`, the same rule as the page's own controls, asked about the screen's record or the row's cart (`polycart.types` rows and screens without a record are asked about as `CartModel::class`). So, like every Polycart control, a `permission()` extension is shown to [operators](#operators-showing-every-cart) and to everyone while `polycart.authorization` is off. An extension that needs a check of its own uses `authorize()` instead.
-
-Each page checks its own access first: a user the page refuses gets 403 before any extension is asked.
-
-### Switching it off
-
-Set `polycart.ui.enabled` to `false` to leave the dashboard out.
-
-With [`refactor-circus/pennantplus`](https://github.com/Refactor-Circus/PennantPlus) installed, the `RefactorCircus\Polycart\Atrium\Features\PolycartSupportFeature` Pennant feature switches Polycart in Atrium on and off as a whole: its navigation, widgets, search and pages, which answer 404 while it is off. It is on until its global value is set, and only its global value counts; per-user access stays with the policies.
-
-```php
-Feature::for(null)->deactivate(PolycartSupportFeature::class);
-```
-
-The features checked come from `polycart.atrium.features`. Point it at a subclass to change the default, at your own feature, or empty it. A class that cannot be loaded, such as `PolycartSupportFeature` without refactor-circus/pennantplus, is skipped.
-
 ## Sources and history
 
-Every cart records the **`source`** it was created (or last converted) through, as refactor-circus/keystone's `Surface` names it: `http` (the JSON API), `mcp`, `cortex` (a Cortex agent), `atrium`, `cli` or `code`, or a name of your own.
+Every cart records the **`source`** it was created (or last converted) through, as refactor-circus/keystone's `Surface` names it: `http` (the JSON API), `mcp`, `cortex` (a Cortex agent), `cli` or `code`, or a name of your own. A front end on the JSON API, Atrium v2 among them, records `http`.
 
 Polycart keeps no history of its own. Install [refactor-circus/keen](https://github.com/Refactor-Circus/Keen), the suite-wide audit log, and every change to a cart is recorded with who made it, through which surface and what changed. Line, sharing, merge and conversion entries are about the cart; a merge names the merged cart in `merged_from`, and a copy made by a conversion names the original in `converted_from`. Without Keen, carts keep no history.
 
@@ -529,7 +562,7 @@ CartModel::query()->fromSource('mcp')->get();
 Keen::record('cart.exported')->on($cart)->with(['reference' => 'SO-1042'])->save();   // your own events
 ```
 
-Read a cart's history from `GET /polycart/history?subject_type=...&subject_id=...`, the `list-polycart-history-tool` MCP tool, or Keen's History section on the cart's Atrium page.
+Read a cart's history from `GET /polycart/history?subject_type=...&subject_id=...` or the `list-polycart-history-tool` MCP tool.
 
 **Full guide:** [Sources and history](docs/sources-and-history.md). It covers sources, every recorded action, where a cart came from, reading history, and upgrading from the old activity log.
 
@@ -563,7 +596,7 @@ The code is organised into domain modules under `src/Domains/{Domain}` (`Refacto
 | `Sharing` | `CartMemberModel`, sharing and visibility, `CartAccess` |
 | `Scope` | `CartPathModel`, the `ScopeTree`, `CartScope` and `CartParticipant` |
 
-Polycart stands on [refactor-circus/keystone](https://github.com/Refactor-Circus/Keystone), the runtime the Refactor Circus packages share: its HTTP and MCP request bases, MCP tool and server bases, authorizer, Cortex integration, event contracts and model-event trait are used as they are. Cross-domain code stays outside the domains: the `Polycart` entry point and facade, `Mcp\Request` (Keystone's MCP request plus the `cortex` surface for agent calls and line reason codes), the MCP server and its history tool, `Support/` (morph lookups and the base policy) and the Atrium plugin, whose screens, `ScreenAccess` and `PolycartSupportFeature` live under `src/Atrium/` because they span every domain. Domain providers extend Keystone's `ServiceProvider` directly. Each change's history is refactor-circus/keen's, read through Keystone's `AuditTrail`.
+Polycart stands on [refactor-circus/keystone](https://github.com/Refactor-Circus/Keystone), the runtime the Refactor Circus packages share: its HTTP and MCP request bases, MCP tool and server bases, authorizer, Cortex integration, event contracts and model-event trait are used as they are. Cross-domain code stays outside the domains: the `Polycart` entry point and facade, `Mcp\Request` (Keystone's MCP request plus the `cortex` surface for agent calls and line reason codes), the MCP server and its history tool, and `Support/` (morph lookups, table names and the base policy). Polycart ships no views, translations or PHP UI; the OpenAPI document, the TypeScript client (`client/`) and the Atrium module (`atrium/` sources, `dist/atrium/` build) sit beside the PHP code. Domain providers extend Keystone's `ServiceProvider` directly. Each change's history is refactor-circus/keen's, read through Keystone's `AuditTrail`.
 
 ## Testing
 

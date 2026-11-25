@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use RefactorCircus\Keystone\Testing\Arch;
+use RefactorCircus\Polycart\Mcp\PolycartServer;
 use RefactorCircus\Polycart\Support\Tables;
 
 const POLYCART_DOMAINS = __DIR__.'/../src/Domains';
@@ -19,12 +20,17 @@ arch('the package source declares strict types')
     ->expect('RefactorCircus\Polycart')
     ->toUseStrictTypes();
 
-// Atrium is optional: only the dashboard integration may name its classes,
-// so the rest of the package loads without it (tests/WithoutAtrium).
-arch('code outside src/Atrium uses no Atrium class')
+// Polycart is a JSON API and MCP server: Atrium v2 is a client of the API and
+// lives in its own package, so no part of Polycart names an Atrium class.
+arch('the package uses no Atrium class')
     ->expect('RefactorCircus\Polycart')
-    ->not->toUse('RefactorCircus\Atrium')
-    ->ignoring('RefactorCircus\Polycart\Atrium');
+    ->not->toUse('RefactorCircus\Atrium');
+
+// Scramble exports openapi.json from the workbench; it is a dev tool, so the
+// package itself never names it.
+arch('the package uses no Scramble class')
+    ->expect('RefactorCircus\Polycart')
+    ->not->toUse('Dedoc\Scramble');
 
 arch('actions are final')
     ->expect(Arch::domainNamespaces('RefactorCircus\Polycart', POLYCART_DOMAINS, 'Actions'))
@@ -75,13 +81,19 @@ arch('requests validate once, with the Data rules, and build from what they vali
     )))
     ->toBeEmpty();
 
+// A request counts as offered when a tool on the server handles it, whatever
+// the tool is called (`cart-stats` is CartStatsTool on ShowCartStatsMcpRequest).
 arch('every MCP request has a tool on the server')
     ->expect(function (): array {
-        $server = (string) file_get_contents(dirname(__DIR__).'/src/Mcp/PolycartServer.php');
+        $handled = array_map(function (string $tool): string {
+            $type = (new ReflectionMethod($tool, 'handle'))->getParameters()[0]->getType();
+
+            return $type instanceof ReflectionNamedType ? class_basename($type->getName()) : '';
+        }, PolycartServer::TOOLS);
 
         return array_values(array_filter(
-            array_map(fn (string $path): string => basename($path, 'McpRequest.php'), (array) glob(dirname(__DIR__).'/src/Domains/*/Mcp/Requests/*McpRequest.php')),
-            fn (string $name): bool => ! str_contains($server, $name.'Tool::class'),
+            array_map(fn (string $path): string => basename($path, '.php'), (array) glob(dirname(__DIR__).'/src/Domains/*/Mcp/Requests/*McpRequest.php')),
+            fn (string $request): bool => ! in_array($request, $handled, true),
         ));
     })
     ->toBeEmpty();

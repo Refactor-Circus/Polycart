@@ -1,0 +1,13 @@
+{
+  "key": "polycart",
+  "shared_api": "1.0",
+  "root": "../../atrium",
+  "inputs": [
+    "src",
+    "../client/src",
+    "package.json",
+    "vite.config.ts",
+    "pnpm-lock.yaml"
+  ],
+  "hash": "5b24537dc4137610b4f9c4cb011fd2bc772dfdf0aeb09c7f36bf52151bc84210"
+}

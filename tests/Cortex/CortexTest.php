@@ -39,6 +39,7 @@ it('offers every cart tool to Cortex agents', function (): void {
     // The history tool only while Polycart audits, and no audit log is installed here.
     expect(array_diff($names, $tools->names()))->toBe([])
         ->and($tools->has('add-lines'))->toBeTrue()
+        ->and($tools->has('cart-stats'))->toBeTrue()
         ->and($tools->has('list-polycart-history-tool'))->toBeFalse()
         ->and(array_intersect($tools->names(), ['list-carts', 'share-cart', 'remove-lines']))->toHaveCount(3)
         ->and($tools->get('create-cart'))->toBeInstanceOf(AgentTool::class);

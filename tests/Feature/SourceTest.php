@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Support\Facades\Route;
 use RefactorCircus\Keystone\Support\Surface;
 use RefactorCircus\Polycart\Domains\Cart\Mcp\Tools\ConvertCartTool;
@@ -46,19 +45,6 @@ it('records carts made through MCP', function (): void {
 
     expect(CartModel::query()->sole()->source)->toBe('mcp')
         ->and(Polycart::create('cart')->source)->toBe('cli');
-});
-
-it('records copies made from the dashboard as the dashboard\'s', function (): void {
-    ValidateCsrfToken::except(['*']);
-    app()->detectEnvironment(fn (): string => 'local');
-
-    $cart = Polycart::create('cart');
-    $cart->add(product());
-
-    $this->post(route('atrium.polycart.carts.convert', $cart), ['to' => 'quote', 'copy' => '1'])->assertRedirect();
-
-    expect(CartModel::query()->ofType('quote')->sole()->source)->toBe('atrium')
-        ->and($cart->fresh()?->source)->toBe('cli');
 });
 
 it('lets an application name the surface of its own routes', function (): void {

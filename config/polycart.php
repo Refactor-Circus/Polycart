@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use RefactorCircus\Polycart\Atrium\Features\PolycartSupportFeature;
 use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
 use RefactorCircus\Polycart\Domains\Cart\Policies\CartPolicy;
 use RefactorCircus\Polycart\Domains\CartLine\Models\CartLineModel;
@@ -151,8 +150,12 @@ return [
     | JSON API
     |--------------------------------------------------------------------------
     |
-    | Every cart operation over HTTP. It is off by default because it can
-    | read and change every cart: enable it behind your own auth middleware.
+    | Every cart operation over HTTP, including the cart stats and search
+    | endpoints. The package's openapi.json and its TypeScript client
+    | (@refactor-circus/polycart-client) describe these routes. It is off by
+    | default because it can read and change every cart. A front end built
+    | on the API, such as an admin UI, needs it on: enable it behind your
+    | own auth middleware.
     |
     */
 
@@ -210,9 +213,9 @@ return [
     |--------------------------------------------------------------------------
     |
     | Polycart keeps no history of its own. With refactor-circus/keen
-    | installed, Keen records every change Polycart makes, and Polycart shows
-    | the history on its Atrium pages, its `GET /polycart/history` route and
-    | its history MCP tool. Without Keen none of that exists.
+    | installed, Keen records every change Polycart makes, and Polycart serves
+    | the history through its `GET /polycart/history` route and its history
+    | MCP tool. Without Keen neither exists.
     |
     | enabled: Set to false to keep Polycart out of the audit log even while
     |          Keen is installed: Keen records nothing of Polycart's, and
@@ -222,50 +225,6 @@ return [
 
     'audit' => [
         'enabled' => true,
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Dashboard
-    |--------------------------------------------------------------------------
-    |
-    | When refactor-circus/atrium is installed, Polycart adds its pages, widgets, and
-    | search to the Atrium dashboard, behind Atrium's own authorization. Each
-    | page, navigation item and control is then shown only when the policies
-    | above allow its action, as the JSON API checks it.
-    |
-    */
-
-    'ui' => [
-        'enabled' => true,
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Atrium Features and Operators
-    |--------------------------------------------------------------------------
-    |
-    | Features that switch Polycart in Atrium on and off as a whole: its
-    | navigation, widgets, search and pages. With refactor-circus/pennantplus installed,
-    | PolycartSupportFeature is on until its global value is set; without it,
-    | the class does not exist and is skipped. Point this at a subclass or at
-    | your own feature, or empty it to never check one.
-    |
-    | `show_all` makes some users operators of the dashboard: they see every
-    | cart in its lists, widgets and search, and may take every action on
-    | it, whatever their role on the cart. Set it to true to make everyone
-    | who can open Atrium an operator, or to the name of a Gate ability,
-    | such as 'manage-carts', to make the users it allows operators. It
-    | applies to the dashboard only: the JSON API and MCP tools still act
-    | as the user's cart role allows.
-    |
-    */
-
-    'atrium' => [
-        'features' => [
-            PolycartSupportFeature::class,
-        ],
-        'show_all' => false,
     ],
 
 ];

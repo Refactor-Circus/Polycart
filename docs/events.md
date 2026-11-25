@@ -3,7 +3,7 @@
 Polycart fires two families of events:
 
 - **Model events:** every Eloquent lifecycle hook of every Polycart model, one class per hook.
-- **Action events:** a start event and a finish event for every action. Every operation on a cart is an action, whether it runs through code, the JSON API, MCP, Cortex or the dashboard.
+- **Action events:** a start event and a finish event for every action. Every operation on a cart is an action, whether it runs through code, the JSON API (and any front end on it), MCP or Cortex.
 
 Every event carries the models involved, not just their ids. Every event also uses `Dispatchable` and `SerializesModels`, so it can be dispatched with `::dispatch()` and handled by queued listeners.
 
@@ -125,6 +125,7 @@ A start event carries the action's input as its Data object (`$event->data`, or 
 | `SetVisibilityAction` | `VisibilityChangingActionEvent` (`cart`, `data`: `SetVisibilityData`) | `VisibilityChangedActionEvent` (`cart`, `from`, `to`) |
 | `ShareCartAction` | `CartSharingActionEvent` (`cart`, `member`, `data`: `ShareCartData`) | `CartSharedActionEvent` (`cart`, `member`) |
 | `ShowCartAction` | `CartShowingActionEvent` (`cart`) | `CartShownActionEvent` (`cart`) |
+| `ShowCartStatsAction` | `CartStatsShowingActionEvent` (`viewer`) | `CartStatsShownActionEvent` (`stats`: `CartStats`, `viewer`) |
 | `TransitionCartAction` | `CartTransitioningActionEvent` (`cart`, `data`: `TransitionCartData`) | `CartTransitionedActionEvent` (`cart`, `from`, `to`) |
 | `UnshareCartAction` | `CartUnsharingActionEvent` (`cart`, `member`) | `CartUnsharedActionEvent` (`cart`, `memberType`, `memberId`) |
 | `UpdateCartAction` | `CartUpdatingActionEvent` (`cart`, `data`: `UpdateCartData`) | `CartUpdatedActionEvent` (`cart`, `changed`) |

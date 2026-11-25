@@ -12,7 +12,9 @@ use RefactorCircus\Polycart\Domains\Cart\Http\Requests\ConvertCartRequest;
 use RefactorCircus\Polycart\Domains\Cart\Http\Requests\DestroyCartRequest;
 use RefactorCircus\Polycart\Domains\Cart\Http\Requests\IndexCartsRequest;
 use RefactorCircus\Polycart\Domains\Cart\Http\Requests\MergeCartsRequest;
+use RefactorCircus\Polycart\Domains\Cart\Http\Requests\SearchCartsRequest;
 use RefactorCircus\Polycart\Domains\Cart\Http\Requests\ShowCartRequest;
+use RefactorCircus\Polycart\Domains\Cart\Http\Requests\ShowCartStatsRequest;
 use RefactorCircus\Polycart\Domains\Cart\Http\Requests\StoreCartRequest;
 use RefactorCircus\Polycart\Domains\Cart\Http\Requests\TransitionCartRequest;
 use RefactorCircus\Polycart\Domains\Cart\Http\Requests\UpdateCartRequest;
@@ -21,6 +23,16 @@ use RefactorCircus\Polycart\Domains\Cart\Models\CartModel;
 final class CartController
 {
     public function index(IndexCartsRequest $request): JsonResponse
+    {
+        return $request->persist();
+    }
+
+    public function stats(ShowCartStatsRequest $request): JsonResponse
+    {
+        return $request->persist();
+    }
+
+    public function search(SearchCartsRequest $request): JsonResponse
     {
         return $request->persist();
     }
